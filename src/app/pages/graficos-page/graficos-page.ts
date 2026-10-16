@@ -46,11 +46,6 @@ import { pickClienteMasAntiguo } from '../../core/mora-por-cliente';
             {{ error() }}
           </div>
         }
-        @if (loading()) {
-          <div class="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-            Cargando métricas...
-          </div>
-        }
         <div
           [@fadeInUp]="{ value: '', params: { delay: 0, duration: 400, offset: 10, ease: 'ease-out' } }"
           class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"
@@ -60,27 +55,27 @@ import { pickClienteMasAntiguo } from '../../core/mora-por-cliente';
             [amount]="totalCartera()"
             variant="highlight"
             icon="cartera"
-            [accentLeft]="true"
+            [accentLeft]="true" [loading]="loading()"
           />
           <app-balance-card
             label="HONORARIOS"
             [amount]="totalHonorarios()"
             icon="honorarios"
-            [accentLeft]="true"
+            [accentLeft]="true" [loading]="loading()"
           />
           <app-balance-card
             label="CLIENTES"
             [amount]="clientesCount()"
             [isCurrency]="false"
             icon="clientes"
-            [accentLeft]="true"
+            [accentLeft]="true" [loading]="loading()"
           />
           <app-balance-card
             label="PROPIEDADES"
             [amount]="propiedadesCount()"
             [isCurrency]="false"
             icon="cuentas"
-            [accentLeft]="true"
+            [accentLeft]="true" [loading]="loading()"
           />
         </div>
 
@@ -90,7 +85,9 @@ import { pickClienteMasAntiguo } from '../../core/mora-por-cliente';
             class="interactive-card bg-card rounded-2xl shadow-card p-4 sm:p-6 border border-border/50 min-w-0"
           >
             <h3 class="font-display font-bold text-foreground mb-4">Distribución por Estado</h3>
-            @if (hasEstadoData()) {
+            @if (loading()) {
+              <div class="h-[250px] rounded-xl bg-muted animate-pulse" aria-hidden="true"></div>
+            } @else if (hasEstadoData()) {
               <div class="h-[250px]">
                 <canvas baseChart [data]="pieEstadoData()" [options]="pieOptions" type="pie"></canvas>
               </div>
@@ -105,7 +102,9 @@ import { pickClienteMasAntiguo } from '../../core/mora-por-cliente';
             class="interactive-card bg-card rounded-2xl shadow-card p-4 sm:p-6 border border-border/50 min-w-0"
           >
             <h3 class="font-display font-bold text-foreground mb-4">Distribución por Tipo</h3>
-            @if (hasTipoData()) {
+            @if (loading()) {
+              <div class="h-[250px] rounded-xl bg-muted animate-pulse" aria-hidden="true"></div>
+            } @else if (hasTipoData()) {
               <div class="h-[250px]">
                 <canvas baseChart [data]="pieTipoData()" [options]="pieOptions" type="pie"></canvas>
               </div>
@@ -130,7 +129,9 @@ import { pickClienteMasAntiguo } from '../../core/mora-por-cliente';
               </p>
             }
           </div>
-          @if (hasMoraClienteData()) {
+          @if (loading()) {
+            <div class="h-[250px] rounded-xl bg-muted animate-pulse" aria-hidden="true"></div>
+          } @else if (hasMoraClienteData()) {
             @if (moraChartTruncado()) {
               <p class="text-xs text-muted-foreground mb-2">
                 Mostrando los {{ moraChartRows().length }} clientes con mayor % de mora.
@@ -163,7 +164,9 @@ import { pickClienteMasAntiguo } from '../../core/mora-por-cliente';
               </p>
             }
           </div>
-          @if (hasHonorariosClienteData()) {
+          @if (loading()) {
+            <div class="h-[250px] rounded-xl bg-muted animate-pulse" aria-hidden="true"></div>
+          } @else if (hasHonorariosClienteData()) {
             @if (honorariosChartTruncado()) {
               <p class="text-xs text-muted-foreground mb-2">
                 Mostrando los {{ honorariosChartRows().length }} clientes con mayor honorarios.

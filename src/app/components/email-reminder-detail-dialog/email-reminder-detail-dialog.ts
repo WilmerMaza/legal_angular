@@ -37,7 +37,20 @@ import type { PaymentReminderEmailRecord } from '../../core/models';
 
         <div class="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5">
           @if (loading()) {
-            <p class="text-sm text-muted-foreground">Cargando correo…</p>
+            <div class="space-y-5 animate-pulse" aria-busy="true">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                @for (span of ['', '', 'sm:col-span-2']; track $index) {
+                  <div class="rounded-xl border border-border bg-muted/30 px-3.5 py-3" [class]="span">
+                    <div class="h-2.5 w-16 rounded bg-muted mb-2"></div>
+                    <div class="h-3.5 w-40 max-w-full rounded bg-muted"></div>
+                  </div>
+                }
+              </div>
+              <div>
+                <div class="h-3.5 w-20 rounded bg-muted mb-2"></div>
+                <div class="w-full min-h-[280px] h-[42vh] rounded-xl bg-muted"></div>
+              </div>
+            </div>
           } @else if (error()) {
             <div class="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {{ error() }}

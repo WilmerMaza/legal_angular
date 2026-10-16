@@ -20,10 +20,17 @@ import {
   type ReportChartPalette,
   unidadesEjeYFromEdadMoraChartData,
 } from './client-chart-data';
+import type { TutelaInforme } from '../services/tutelas.service';
 import {
   buildUnidadGestionExportRows,
   GESTION_EXPORT_HEADERS_CON_UNIDAD,
 } from './gestion-report';
+import {
+  buildTutelasInformeRows,
+  buildTutelasTrazabilidadRows,
+  TUTELAS_INFORME_HEADERS,
+  TUTELAS_TRAZABILIDAD_HEADERS,
+} from './tutelas-report';
 
 export type ClientReportResumenRow = {
   cuenta: Cuenta;
@@ -235,6 +242,7 @@ export function downloadClientGeneralReportPdf(options: {
   fecha?: string;
   chartPalette?: ReportChartPalette;
   recaudoMeses?: RecaudoMesesVentana;
+  tutelas?: TutelaInforme[];
 }): void {
   const { data, cliente, cuentas } = options;
   const tituloDoc = options.titulo?.trim() || `Informe General – ${cliente.nombre}`;
@@ -372,6 +380,42 @@ export function downloadClientGeneralReportPdf(options: {
       body: gestionRows,
       styles: { fontSize: 8, overflow: 'linebreak' },
       columnStyles: { 4: { cellWidth: 70 } },
+      headStyles: { fillColor: [107, 60, 200] },
+    });
+  }
+
+  const tutelas = options.tutelas ?? [];
+  if (tutelas.length > 0) {
+    const yAfterGestion = gestionRows.length > 0 ? (docLt.lastAutoTable?.finalY ?? yAfterTx + 24) : yAfterTx + 18;
+    let y = yAfterGestion + 10;
+    if (y > doc.internal.pageSize.getHeight() - 40) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setFontSize(11);
+    doc.text('Acciones de tutela', 14, y);
+    autoTable(doc, {
+      startY: y + 4,
+      head: [[...TUTELAS_INFORME_HEADERS]],
+      body: buildTutelasInformeRows(tutelas),
+      styles: { fontSize: 8, overflow: 'linebreak' },
+      headStyles: { fillColor: [107, 60, 200] },
+    });
+
+    const yAfterTutelas = (docLt.lastAutoTable?.finalY ?? y + 24) + 10;
+    y = yAfterTutelas;
+    if (y > doc.internal.pageSize.getHeight() - 40) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setFontSize(11);
+    doc.text('Trazabilidad de tutelas', 14, y);
+    autoTable(doc, {
+      startY: y + 4,
+      head: [[...TUTELAS_TRAZABILIDAD_HEADERS]],
+      body: buildTutelasTrazabilidadRows(tutelas),
+      styles: { fontSize: 8, overflow: 'linebreak' },
+      columnStyles: { 3: { cellWidth: 90 } },
       headStyles: { fillColor: [107, 60, 200] },
     });
   }

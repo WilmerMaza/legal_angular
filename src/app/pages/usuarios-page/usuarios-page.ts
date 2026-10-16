@@ -7,6 +7,7 @@ import type { Cliente } from '../../core/models';
 import type { InvitableStaffRole } from '../../core/services/auth.service';
 import { AuthService } from '../../core/services/auth.service';
 import { DataService } from '../../core/services/data.service';
+import { FILAS_ESQUELETO, FilaEsqueleto, type CeldaEsqueleto } from '../../shared/esqueleto/fila-esqueleto';
 import {
   UsuariosService,
   type StaffUsuario,
@@ -23,7 +24,7 @@ import {
 @Component({
   selector: 'app-usuarios-page',
   standalone: true,
-  imports: [RouterLink, ReactiveFormsModule],
+  imports: [RouterLink, ReactiveFormsModule, FilaEsqueleto],
   animations: [fadeInUp],
   template: `
     <div class="min-h-screen pb-12">
@@ -143,9 +144,7 @@ import {
             </div>
           </div>
 
-          @if (loading()) {
-            <p class="p-6 text-sm text-muted-foreground">Cargando usuarios…</p>
-          } @else if (usuarios().length === 0) {
+          @if (!loading() && usuarios().length === 0) {
             <p class="p-6 text-sm text-muted-foreground">
               {{ statusFilter() ? 'No hay usuarios con ese filtro.' : 'No hay usuarios.' }}
             </p>
@@ -160,7 +159,12 @@ import {
                     <th class="px-4 sm:px-6 py-3 font-medium text-right">Acciones</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody [attr.aria-busy]="loading()">
+                  @if (loading() && usuarios().length === 0) {
+                    @for (fila of filasEsqueleto; track fila) {
+                      <tr [appFilaEsqueleto]="esqueletoUsuarios" celdaClass="px-4 sm:px-6 py-3" class="border-b border-border/40 last:border-0"></tr>
+                    }
+                  }
                   @for (u of usuarios(); track u.id) {
                     <tr class="border-b border-border/40 last:border-0">
                       <td class="px-4 sm:px-6 py-3 text-foreground">{{ u.email }}</td>
@@ -305,9 +309,7 @@ import {
             </div>
           </div>
 
-          @if (portalLoading()) {
-            <p class="p-6 text-sm text-muted-foreground">Cargando clientes…</p>
-          } @else if (clientesPortalFiltered().length === 0) {
+          @if (!portalLoading() && clientesPortalFiltered().length === 0) {
             <p class="p-6 text-sm text-muted-foreground">No hay clientes con ese filtro.</p>
           } @else {
             <div class="overflow-x-auto">
@@ -320,7 +322,12 @@ import {
                     <th class="px-4 sm:px-6 py-3 font-medium text-right">Acciones</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody [attr.aria-busy]="portalLoading()">
+                  @if (portalLoading() && clientesPortalFiltered().length === 0) {
+                    @for (fila of filasEsqueleto; track fila) {
+                      <tr [appFilaEsqueleto]="esqueletoPortal" celdaClass="px-4 sm:px-6 py-3" class="border-b border-border/40 last:border-0"></tr>
+                    }
+                  }
                   @for (c of clientesPortalFiltered(); track c.id) {
                     <tr class="border-b border-border/40 last:border-0">
                       <td class="px-4 sm:px-6 py-3 text-foreground font-medium">{{ c.nombre }}</td>
@@ -464,6 +471,19 @@ export class UsuariosPage implements OnInit {
   readonly usuarios = signal<StaffUsuario[]>([]);
   readonly loading = signal(true);
   readonly portalLoading = signal(true);
+  readonly filasEsqueleto = FILAS_ESQUELETO.slice(0, 4);
+  readonly esqueletoUsuarios: CeldaEsqueleto[] = [
+    { ancho: 'w-56' },
+    { ancho: 'w-24' },
+    { ancho: 'w-16', forma: 'etiqueta' },
+    { ancho: 'w-28', alinear: 'derecha' },
+  ];
+  readonly esqueletoPortal: CeldaEsqueleto[] = [
+    { ancho: 'w-40' },
+    { ancho: 'w-48' },
+    { ancho: 'w-20', forma: 'etiqueta' },
+    { ancho: 'w-28', alinear: 'derecha' },
+  ];
   readonly creating = signal(false);
   readonly error = signal<string | null>(null);
   readonly success = signal<string | null>(null);

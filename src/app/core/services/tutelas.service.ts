@@ -1,5 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
+import type { HistorialCambio } from '../historial-cambios';
 import { HttpService } from '../http/http.service';
 import { ETAPAS_TUTELA_SIN_ALERTA, type EtapaTutela } from '../tutela-etapas';
 import { DIAS_HABILES_AVISO_TUTELA, diasHabilesEntre, todayBogotaYmd } from '../utils/dias-habiles-co';
@@ -38,6 +39,22 @@ export type TutelaInput = {
   vencimiento: string | null;
   nota: string | null;
 };
+
+/** Tutela tal como sale en el informe del propietario. */
+export type TutelaInforme = Pick<
+  Tutela,
+  | 'id'
+  | 'radicado'
+  | 'juzgado'
+  | 'accionante'
+  | 'accionado'
+  | 'derecho'
+  | 'etapa'
+  | 'fecha_radicacion'
+  | 'fecha_etapa'
+  | 'vencimiento'
+  | 'created_at'
+> & { historial: HistorialCambio[] };
 
 export type PlazoTutela = 'vencida' | 'por_vencer' | 'en_plazo' | 'sin_vencimiento' | 'cerrada';
 
@@ -90,6 +107,15 @@ export class TutelasService {
     const updated = await this.http.patch<Tutela>(`/tutelas/${id}`, input);
     this.tutelasSignal.update((list) => list.map((t) => (t.id === id ? updated : t)));
     return updated;
+  }
+
+  historial(id: string): Promise<HistorialCambio[]> {
+    return this.http.getItems<HistorialCambio>(`/tutelas/${id}/historial`);
+  }
+
+  /** Tutelas del cliente para su informe (sin nota interna). */
+  listarParaInformeCliente(clienteId: string): Promise<TutelaInforme[]> {
+    return this.http.getItems<TutelaInforme>(`/clientes/${clienteId}/tutelas`);
   }
 
   async remove(id: string): Promise<void> {

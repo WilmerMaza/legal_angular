@@ -1,7 +1,14 @@
-import { Component, computed, effect, input, output, signal } from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal } from '@angular/core';
 import { BaseChartDirective } from 'ng2-charts';
 import type { ChartConfiguration } from 'chart.js';
 import { DataService } from '../../core/services/data.service';
+import { TutelasService, type TutelaInforme } from '../../core/services/tutelas.service';
+import {
+  buildTutelasInformeRows,
+  buildTutelasTrazabilidadRows,
+  TUTELAS_INFORME_HEADERS,
+  TUTELAS_TRAZABILIDAD_HEADERS,
+} from '../../core/report-export/tutelas-report';
 import type { Cliente, Cuenta } from '../../core/models';
 import { DeudorCell } from '../../shared/deudor-cell/deudor-cell';
 import * as XLSX from 'xlsx';
@@ -361,6 +368,57 @@ import {
             </div>
           </div>
 
+          @if (tutelas().length > 0) {
+            <div>
+              <h3 class="text-sm font-semibold text-foreground mb-2">Acciones de tutela</h3>
+              <div class="overflow-x-auto rounded-xl border border-border">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-border bg-muted/30">
+                      @for (h of tutelasHeaders; track h) {
+                        <th class="text-left px-3 py-2 font-semibold text-muted-foreground whitespace-nowrap">{{ h }}</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of tutelasRows(); track $index) {
+                      <tr class="border-b border-border/50">
+                        @for (cell of row; track $index; let first = $first) {
+                          <td class="px-3 py-2" [class.font-mono]="first" [class.text-xs]="first">{{ cell }}</td>
+                        }
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <h3 class="text-sm font-semibold text-foreground mb-2">Trazabilidad de tutelas</h3>
+              <div class="overflow-x-auto rounded-xl border border-border">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-border bg-muted/30">
+                      @for (h of tutelasTrazabilidadHeaders; track h) {
+                        <th class="text-left px-3 py-2 font-semibold text-muted-foreground whitespace-nowrap">{{ h }}</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of tutelasTrazabilidadRows(); track $index) {
+                      <tr class="border-b border-border/50 align-top">
+                        <td class="px-3 py-2 font-mono text-xs">{{ row[0] }}</td>
+                        <td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{{ row[1] }}</td>
+                        <td class="px-3 py-2 whitespace-nowrap">{{ row[2] }}</td>
+                        <td class="px-3 py-2 whitespace-pre-line">{{ row[3] }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+
           <div>
             <label class="block text-sm font-medium text-foreground mb-1.5">Notas adicionales (opcional)</label>
             <textarea
@@ -449,6 +507,13 @@ export class ClientReportDialog {
     buildUnidadGestionExportRows(this.data, this.cuentas()),
   );
 
+  private readonly tutelasService = inject(TutelasService);
+  readonly tutelas = signal<TutelaInforme[]>([]);
+  readonly tutelasHeaders = TUTELAS_INFORME_HEADERS;
+  readonly tutelasTrazabilidadHeaders = TUTELAS_TRAZABILIDAD_HEADERS;
+  readonly tutelasRows = computed(() => buildTutelasInformeRows(this.tutelas()));
+  readonly tutelasTrazabilidadRows = computed(() => buildTutelasTrazabilidadRows(this.tutelas()));
+
   readonly barEdadMoraData = computed((): ChartConfiguration<'bar'>['data'] =>
     buildClienteUnidadesPorEdadMoraChartData(this.data, this.cuentas(), {
       palette: this.chartPalette(),
@@ -536,6 +601,13 @@ export class ClientReportDialog {
       this.chartPalette.set('morado');
       this.recaudoMeses.set(3);
       void this.data.loadGestionesForCuentas(this.cuentas());
+      this.tutelas.set([]);
+      void this.tutelasService
+        .listarParaInformeCliente(key)
+        .then((items) => {
+          if (this.lastSyncedClienteKey === key) this.tutelas.set(items);
+        })
+        .catch(() => this.tutelas.set([]));
     });
   }
 
@@ -549,6 +621,7 @@ export class ClientReportDialog {
       fecha: this.fecha,
       chartPalette: this.chartPalette(),
       recaudoMeses: this.recaudoMeses(),
+      tutelas: this.tutelas(),
     });
   }
 
@@ -591,6 +664,18 @@ export class ClientReportDialog {
       ...(gestionRows.length
         ? gestionRows
         : [['No hay trazabilidad de cobro registrada en las unidades de este cliente.', '', '', '', '']]),
+      ...(this.tutelas().length
+        ? [
+            [],
+            ['Acciones de tutela'],
+            [...TUTELAS_INFORME_HEADERS],
+            ...this.tutelasRows(),
+            [],
+            ['Trazabilidad de tutelas'],
+            [...TUTELAS_TRAZABILIDAD_HEADERS],
+            ...this.tutelasTrazabilidadRows(),
+          ]
+        : []),
     ];
     const ws = XLSX.utils.aoa_to_sheet(wsData);
     (ws as unknown as { '!cols': { wch: number }[] })['!cols'] = [
@@ -658,6 +743,19 @@ export class ClientReportDialog {
               'No hay trazabilidad de cobro registrada en las unidades de este cliente.',
             ),
           ]),
+      ...(this.tutelas().length
+        ? [
+            buildSpacer(),
+            buildSubheading('Acciones de tutela'),
+            buildTable([...TUTELAS_INFORME_HEADERS], this.tutelasRows()),
+            buildSpacer(),
+            buildSubheading('Trazabilidad de tutelas'),
+            buildTable(
+              [...TUTELAS_TRAZABILIDAD_HEADERS],
+              this.tutelasTrazabilidadRows().map((row) => row.map((cell) => cell.replaceAll('\n', ' · '))),
+            ),
+          ]
+        : []),
     ];
 
     await saveDocx(`informe_general_${c.nombre.replace(/\s/g, '_')}.docx`, children);

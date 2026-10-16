@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 import type { Cliente, Cuenta } from '../../core/models';
 import { DataService } from '../../core/services/data.service';
 import { DeudorCell } from '../../shared/deudor-cell/deudor-cell';
+import { FILAS_ESQUELETO, FilaEsqueleto, type CeldaEsqueleto } from '../../shared/esqueleto/fila-esqueleto';
 import { RecordatorioPeriodoChip } from '../../shared/recordatorio-periodo-chip/recordatorio-periodo-chip';
 import { StatusBadge } from '../../shared/status-badge/status-badge';
 import { fadeInUp, fadeInUpStagger } from '../../core/animations/animations';
@@ -18,7 +19,7 @@ type CuentaConCliente = Cuenta & { cliente?: Cliente };
 @Component({
   selector: 'app-cuentas-page',
   standalone: true,
-  imports: [RouterLink, DeudorCell, StatusBadge, RecordatorioPeriodoChip],
+  imports: [RouterLink, DeudorCell, FilaEsqueleto, StatusBadge, RecordatorioPeriodoChip],
   animations: [fadeInUp, fadeInUpStagger],
   template: `
     <div class="min-h-screen">
@@ -127,9 +128,6 @@ type CuentaConCliente = Cuenta & { cliente?: Cliente };
         </div>
 
         <div class="bg-card rounded-2xl shadow-card border border-border/50">
-          @if (loading()) {
-            <div class="px-6 py-8 text-sm text-muted-foreground">Cargando propiedades...</div>
-          }
           <div class="table-wrap">
             <table class="w-full">
               <thead>
@@ -169,7 +167,12 @@ type CuentaConCliente = Cuenta & { cliente?: Cliente };
                   </th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody [attr.aria-busy]="loading()">
+                @if (loading() && grouped().length === 0) {
+                  @for (fila of filasEsqueleto; track fila) {
+                    <tr [appFilaEsqueleto]="esqueleto" celdaClass="px-5 sm:px-6 py-4" class="border-b border-border/40 last:border-0"></tr>
+                  }
+                }
                 @for (group of grouped(); track group.clienteId; let gi = $index) {
                   <tr class="border-b border-border/60 bg-muted/30">
                     <td colspan="9" class="px-5 sm:px-6 py-2.5">
@@ -244,7 +247,7 @@ type CuentaConCliente = Cuenta & { cliente?: Cliente };
               </tbody>
             </table>
           </div>
-          @if (grouped().length === 0) {
+          @if (!loading() && grouped().length === 0) {
             <div class="text-center py-12 text-muted-foreground text-sm">No se encontraron propiedades</div>
           }
         </div>
@@ -254,6 +257,18 @@ type CuentaConCliente = Cuenta & { cliente?: Cliente };
 })
 export class CuentasPage {
   readonly loading = signal(true);
+  readonly filasEsqueleto = FILAS_ESQUELETO;
+  readonly esqueleto: CeldaEsqueleto[] = [
+    { ancho: 'w-16' },
+    { ancho: 'w-32' },
+    { ancho: 'w-28' },
+    { ancho: 'w-28' },
+    { ancho: 'w-20', forma: 'etiqueta' },
+    { ancho: 'w-16', alinear: 'derecha' },
+    { ancho: 'w-24', alinear: 'derecha' },
+    { ancho: 'w-16', forma: 'etiqueta', alinear: 'centro' },
+    { forma: 'botones', botones: 1, alinear: 'derecha' },
+  ];
   readonly error = signal<string | null>(null);
   search = signal('');
   filterTipo = signal('todos');

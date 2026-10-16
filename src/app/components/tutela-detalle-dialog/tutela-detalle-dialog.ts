@@ -1,14 +1,16 @@
-import { Component, computed, inject, input, output } from '@angular/core';
+import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import type { HistorialCambio } from '../../core/historial-cambios';
 import { DataService } from '../../core/services/data.service';
-import { plazoTutela, type Tutela } from '../../core/services/tutelas.service';
+import { TutelasService, plazoTutela, type Tutela } from '../../core/services/tutelas.service';
 import { labelEtapaTutela } from '../../core/tutela-etapas';
 import { diasHabilesEntre, todayBogotaYmd } from '../../core/utils/dias-habiles-co';
+import { HistorialCambios } from '../../shared/historial-cambios/historial-cambios';
 import { StatusBadge } from '../../shared/status-badge/status-badge';
 
 @Component({
   selector: 'app-tutela-detalle-dialog',
   standalone: true,
-  imports: [StatusBadge],
+  imports: [HistorialCambios, StatusBadge],
   template: `
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="fixed inset-0 bg-black/50" (click)="openChange.emit(false)"></div>
@@ -86,6 +88,16 @@ import { StatusBadge } from '../../shared/status-badge/status-badge';
               <p class="text-sm text-foreground leading-relaxed whitespace-pre-line">{{ tutela().nota }}</p>
             </div>
           }
+
+          <div class="border-t border-border pt-5">
+            <app-historial-cambios
+              entidad="tutela"
+              [items]="historial()"
+              [creadoAt]="tutela().created_at"
+              [loading]="historialLoading()"
+              [error]="historialError()"
+            />
+          </div>
         </div>
 
         <div class="shrink-0 border-t border-border px-5 sm:px-6 py-4 flex flex-col sm:flex-row gap-2">
@@ -108,14 +120,29 @@ import { StatusBadge } from '../../shared/status-badge/status-badge';
     </div>
   `,
 })
-export class TutelaDetalleDialog {
+export class TutelaDetalleDialog implements OnInit {
   protected readonly data = inject(DataService);
+  private readonly service = inject(TutelasService);
 
   tutela = input.required<Tutela>();
   openChange = output<boolean>();
   editar = output<Tutela>();
 
+  readonly historial = signal<HistorialCambio[]>([]);
+  readonly historialLoading = signal(true);
+  readonly historialError = signal<string | null>(null);
+
   private readonly hoy = todayBogotaYmd();
+
+  async ngOnInit(): Promise<void> {
+    try {
+      this.historial.set(await this.service.historial(this.tutela().id));
+    } catch (error: unknown) {
+      this.historialError.set(this.service.extractErrorMessage(error, 'No se pudo cargar la trazabilidad.'));
+    } finally {
+      this.historialLoading.set(false);
+    }
+  }
 
   readonly etapaLabel = computed(() => labelEtapaTutela(this.tutela().etapa));
 

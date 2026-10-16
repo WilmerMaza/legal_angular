@@ -690,12 +690,14 @@ export const DOUGHNUT_PERCENT_LABELS_PLUGIN: Plugin<'doughnut'> = {
   },
 };
 
-function doughnutLegendWithPercent(): NonNullable<
+/** En PDF/Word no hay tooltip: con `conMonto` la leyenda incluye el valor de cada porción. */
+function doughnutLegendWithPercent(opts?: { conMonto?: boolean }): NonNullable<
   NonNullable<ChartConfiguration<'doughnut'>['options']>['plugins']
 >['legend'] {
   return {
     position: 'bottom',
     labels: {
+      ...(opts?.conMonto ? { font: { size: 14 }, padding: 16 } : {}),
       generateLabels: (chart) => {
         const labels = chart.data.labels ?? [];
         const dataset = chart.data.datasets[0];
@@ -708,8 +710,9 @@ function doughnutLegendWithPercent(): NonNullable<
           const pct =
             total > 0 && Number.isFinite(value) ? Math.round((value / total) * 100) : 0;
           const fill = Array.isArray(colors) ? String(colors[i] ?? '#999') : String(colors ?? '#999');
+          const monto = opts?.conMonto ? `: ${formatDeudaChartLabel(Number.isFinite(value) ? value : 0)}` : '';
           return {
-            text: `${String(label)} (${pct}%)`,
+            text: `${String(label)}${monto} (${pct}%)`,
             fillStyle: fill,
             strokeStyle: fill,
             lineWidth: 0,
@@ -746,6 +749,6 @@ export const CLIENT_CHART_DOUGHNUT_OPTIONS: ChartConfiguration<'doughnut'>['opti
   responsive: false,
   animation: false,
   plugins: {
-    legend: doughnutLegendWithPercent(),
+    legend: doughnutLegendWithPercent({ conMonto: true }),
   },
 };

@@ -2,6 +2,7 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DataService } from '../../core/services/data.service';
 import { BalanceCard } from '../../shared/balance-card/balance-card';
+import { FILAS_ESQUELETO, FilaEsqueleto, type CeldaEsqueleto } from '../../shared/esqueleto/fila-esqueleto';
 import { RecordatorioPeriodoChip } from '../../shared/recordatorio-periodo-chip/recordatorio-periodo-chip';
 import { StatusBadge } from '../../shared/status-badge/status-badge';
 import { fadeInUp, fadeInUpStagger } from '../../core/animations/animations';
@@ -26,7 +27,7 @@ type DashboardRow = {
 @Component({
   selector: 'app-dashboard-page',
   standalone: true,
-  imports: [RouterLink, BalanceCard, StatusBadge, RecordatorioPeriodoChip],
+  imports: [RouterLink, BalanceCard, FilaEsqueleto, StatusBadge, RecordatorioPeriodoChip],
   animations: [fadeInUp, fadeInUpStagger],
   template: `
     <div class="min-h-screen">
@@ -77,27 +78,27 @@ type DashboardRow = {
             [amount]="totalCartera()"
             variant="highlight"
             icon="cartera"
-            [accentLeft]="true"
+            [accentLeft]="true" [loading]="loading()"
           />
           <app-balance-card
             label="HONORARIOS"
             [amount]="totalHonorarios()"
             icon="honorarios"
-            [accentLeft]="true"
+            [accentLeft]="true" [loading]="loading()"
           />
           <app-balance-card
             label="CLIENTES ACTIVOS"
             [amount]="clientesActivos()"
             [isCurrency]="false"
             icon="clientes"
-            [accentLeft]="true"
+            [accentLeft]="true" [loading]="loading()"
           />
           <app-balance-card
             label="CUENTAS ACTIVAS"
             [amount]="procesosLegalesActivos()"
             [isCurrency]="false"
             icon="cuentas"
-            [accentLeft]="true"
+            [accentLeft]="true" [loading]="loading()"
           />
         </div>
 
@@ -139,9 +140,6 @@ type DashboardRow = {
         </div>
 
         <div class="bg-card rounded-2xl shadow-card border border-border/50 overflow-hidden">
-          @if (loading()) {
-            <div class="px-6 py-8 text-sm text-muted-foreground">Cargando datos...</div>
-          }
           <div class="table-wrap">
             <table class="w-full">
               <thead>
@@ -158,7 +156,12 @@ type DashboardRow = {
                   <th class="text-right px-6 py-4 text-xs font-semibold text-muted-foreground uppercase">Acciones</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody [attr.aria-busy]="loading()">
+                @if (loading() && filtered().length === 0) {
+                  @for (fila of filasEsqueleto; track fila) {
+                    <tr [appFilaEsqueleto]="esqueleto" celdaClass="px-6 py-4" class="border-b border-border/50"></tr>
+                  }
+                }
                 @for (row of filtered(); track row.cliente.id; let i = $index) {
                   <tr
                     [@fadeInUpStagger]="{ value: '', params: { delay: i * 50, duration: 200, offset: 5, ease: 'ease-out' } }"
@@ -202,7 +205,7 @@ type DashboardRow = {
               </tbody>
             </table>
           </div>
-          @if (filtered().length === 0) {
+          @if (!loading() && filtered().length === 0) {
             <div class="text-center py-12 text-muted-foreground">No se encontraron resultados</div>
           }
         </div>
@@ -213,6 +216,14 @@ type DashboardRow = {
 export class DashboardPage {
   protected readonly data = inject(DataService);
   readonly loading = signal(true);
+  readonly filasEsqueleto = FILAS_ESQUELETO;
+  readonly esqueleto: CeldaEsqueleto[] = [
+    { ancho: 'w-40' },
+    { ancho: 'w-32' },
+    { ancho: 'w-16', forma: 'etiqueta', alinear: 'centro' },
+    { ancho: 'w-24', forma: 'etiqueta' },
+    { forma: 'botones', botones: 1, alinear: 'derecha' },
+  ];
   readonly error = signal<string | null>(null);
   search = signal('');
   filterEstado = signal('todos');
