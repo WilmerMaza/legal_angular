@@ -17,6 +17,8 @@ import { diasHabilesEntre, todayBogotaYmd } from '../../core/utils/dias-habiles-
 import { TutelaDetalleDialog } from '../../components/tutela-detalle-dialog/tutela-detalle-dialog';
 import { TutelaDialog } from '../../components/tutela-dialog/tutela-dialog';
 import { StatusBadge } from '../../shared/status-badge/status-badge';
+import { FILAS_ESQUELETO, FilaEsqueleto, type CeldaEsqueleto } from '../../shared/esqueleto/fila-esqueleto';
+import { TextoTooltip } from '../../shared/texto-tooltip/texto-tooltip';
 
 /** Radicación descendente; sin fecha al final (más reciente creada primero). */
 function compararMasRecientePrimero(a: Tutela, b: Tutela): number {
@@ -31,7 +33,7 @@ function compararMasRecientePrimero(a: Tutela, b: Tutela): number {
 @Component({
   selector: 'app-tutelas-page',
   standalone: true,
-  imports: [StatusBadge, TutelaDialog, TutelaDetalleDialog],
+  imports: [FilaEsqueleto, StatusBadge, TextoTooltip, TutelaDialog, TutelaDetalleDialog],
   animations: [fadeInUp, fadeInUpStagger],
   template: `
     <div class="min-h-screen">
@@ -130,19 +132,17 @@ function compararMasRecientePrimero(a: Tutela, b: Tutela): number {
             </div>
           </div>
 
-          @if (loading()) {
-            <div class="px-6 py-8 text-sm text-muted-foreground">Cargando tutelas...</div>
-          } @else if (filtradas().length === 0) {
+          @if (!loading() && filtradas().length === 0) {
             <div class="px-6 py-10 text-center text-sm text-muted-foreground">
               {{ service.tutelas().length === 0 ? 'Aún no hay tutelas registradas.' : 'Ninguna tutela coincide con los filtros.' }}
             </div>
           } @else {
-            <div class="table-wrap">
+            <div class="table-wrap cabecera-fija">
               <table class="w-full">
                 <thead>
                   <tr class="border-b border-border bg-muted/20">
+                    <th class="col-fija text-left px-3 sm:px-5 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Radicado</th>
                     <th class="text-left px-5 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Radicación</th>
-                    <th class="text-left px-5 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Radicado</th>
                     <th class="text-left px-5 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Juzgado</th>
                     <th class="text-left px-5 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Accionante</th>
                     <th class="text-left px-5 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Accionado</th>
@@ -153,14 +153,21 @@ function compararMasRecientePrimero(a: Tutela, b: Tutela): number {
                     <th class="text-right px-5 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Acciones</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody [attr.aria-busy]="loading()">
+                  @if (loading() && service.tutelas().length === 0) {
+                    @for (fila of filasEsqueleto; track fila) {
+                      <tr [appFilaEsqueleto]="esqueleto" class="border-b border-border/40 last:border-0"></tr>
+                    }
+                  }
                   @for (t of filtradas(); track t.id; let i = $index) {
                     <tr
                       [@fadeInUpStagger]="{ value: '', params: { delay: i * 30, duration: 200, offset: 5, ease: 'ease-out' } }"
                       class="border-b border-border/40 last:border-0 hover:bg-muted/30 transition-colors"
                     >
+                      <td class="col-fija px-3 sm:px-5 py-4 text-xs font-mono text-foreground max-w-[8.5rem] sm:max-w-[14rem] break-all">
+                        {{ t.radicado || '—' }}
+                      </td>
                       <td class="px-5 py-4 text-sm tabular-nums text-foreground whitespace-nowrap">{{ data.formatFechaCorta(t.fecha_radicacion) }}</td>
-                      <td class="px-5 py-4 text-xs font-mono text-muted-foreground">{{ t.radicado || '—' }}</td>
                       <td class="px-5 py-4 text-sm text-muted-foreground max-w-[12rem]">{{ t.juzgado || '—' }}</td>
                       <td class="px-5 py-4 text-sm font-medium text-foreground">
                         {{ t.accionante }}
@@ -179,9 +186,9 @@ function compararMasRecientePrimero(a: Tutela, b: Tutela): number {
                       <td class="px-5 py-4">
                         <app-status-badge [label]="etapaLabel(t.etapa)" [variant]="'tutela_' + t.etapa" />
                       </td>
-                      <td class="px-5 py-4 text-sm text-muted-foreground w-[8rem] max-w-[8rem]" [title]="t.nota || ''">
+                      <td class="px-5 py-4 text-sm text-muted-foreground w-[8rem] max-w-[8rem]">
                         @if (t.nota) {
-                          <p class="truncate text-foreground">{{ t.nota }}</p>
+                          <p class="truncate text-foreground cursor-default" [appTextoTooltip]="t.nota">{{ t.nota }}</p>
                         } @else {
                           —
                         }
@@ -286,6 +293,19 @@ export class TutelasPage implements OnInit {
   filtroPlazo = signal<FiltroPlazoTutela>('todos');
 
   loading = signal(true);
+  readonly filasEsqueleto = FILAS_ESQUELETO;
+  readonly esqueleto: CeldaEsqueleto[] = [
+    { ancho: 'w-28', fija: true },
+    { ancho: 'w-20' },
+    { ancho: 'w-32' },
+    { ancho: 'w-28' },
+    { ancho: 'w-28' },
+    { ancho: 'w-24' },
+    { ancho: 'w-20', alinear: 'derecha' },
+    { ancho: 'w-24', forma: 'etiqueta' },
+    { ancho: 'w-24' },
+    { forma: 'botones', alinear: 'derecha' },
+  ];
   error = signal<string | null>(null);
   info = signal<string | null>(null);
   deleting = signal(false);

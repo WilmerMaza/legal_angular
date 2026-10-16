@@ -3,6 +3,8 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { BaseChartDirective } from 'ng2-charts';
 import { DataService } from '../../core/services/data.service';
 import { BalanceCard } from '../../shared/balance-card/balance-card';
+import { DetalleEsqueleto } from '../../shared/esqueleto/detalle-esqueleto';
+import { FILAS_ESQUELETO, FilaEsqueleto, type CeldaEsqueleto } from '../../shared/esqueleto/fila-esqueleto';
 import { StatusBadge } from '../../shared/status-badge/status-badge';
 import { ReportPreviewDialog } from '../../components/report-preview-dialog/report-preview-dialog';
 import { PaymentReminderDialog } from '../../components/payment-reminder-dialog/payment-reminder-dialog';
@@ -32,10 +34,14 @@ import {
     RegistrarGestionDialog,
     AgregarRegistroDialog,
     BaseChartDirective,
+    DetalleEsqueleto,
+    FilaEsqueleto,
   ],
   animations: [fadeInUpStagger, fadeInFromLeft],
   template: `
-    @if (!cuenta()) {
+    @if (!cuenta() && loading()) {
+      <app-detalle-esqueleto class="min-h-screen pb-12" />
+    } @else if (!cuenta()) {
       <div class="p-12 text-center text-muted-foreground">
         Propiedad no encontrada.
         <a routerLink="/dashboard" class="ml-4 rounded-xl border border-border px-4 py-2">Volver</a>
@@ -74,17 +80,12 @@ import {
               {{ error() }}
             </div>
           }
-          @if (loading()) {
-            <div class="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-              Cargando detalle de la propiedad...
-            </div>
-          }
           <div [@fadeInUpStagger]="{ value: '', params: { delay: 0, duration: 300, offset: 8, ease: 'ease-out' } }">
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-              <app-balance-card label="Total Cobrado" [amount]="totalCobrado()" icon="cobrado" [accentLeft]="true" />
-              <app-balance-card label="Total Pagado" [amount]="totalPagado()" icon="pagado" [accentLeft]="true" />
-              <app-balance-card label="Deuda a la fecha" [amount]="deudaActual()" variant="highlight" icon="saldo" [accentLeft]="true" />
+              <app-balance-card label="Total Cobrado" [amount]="totalCobrado()" icon="cobrado" [accentLeft]="true" [loading]="loading()" />
+              <app-balance-card label="Total Pagado" [amount]="totalPagado()" icon="pagado" [accentLeft]="true" [loading]="loading()" />
+              <app-balance-card label="Deuda a la fecha" [amount]="deudaActual()" variant="highlight" icon="saldo" [accentLeft]="true" [loading]="loading()" />
             </div>
             <button
               type="button"
@@ -197,7 +198,12 @@ import {
                     <th class="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Acciones</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody [attr.aria-busy]="loading()">
+                  @if (loading() && historial().length === 0) {
+                    @for (fila of filasEsqueleto; track fila) {
+                      <tr [appFilaEsqueleto]="esqueletoHistorial" celdaClass="px-4 py-3" class="border-b border-border/50"></tr>
+                    }
+                  }
                   @for (h of historial(); track h.id; let i = $index) {
                     <tr
                       [@fadeInUpStagger]="{ value: '', params: { delay: i * 40, duration: 200, offset: 5, ease: 'ease-out' } }"
@@ -255,7 +261,20 @@ import {
                 Registrar trazabilidad
               </button>
             </div>
-            @if (gestiones().length === 0) {
+            @if (loading() && gestiones().length === 0) {
+              <div class="border-l-2 border-primary/20 pl-6 sm:pl-8 space-y-5 animate-pulse" aria-busy="true">
+                @for (ancho of ['w-3/4', 'w-2/3', 'w-1/2']; track $index) {
+                  <div class="relative">
+                    <span class="absolute w-3 h-3 rounded-full bg-muted -left-[29px] sm:-left-[37px] top-1" aria-hidden="true"></span>
+                    <div class="flex items-center gap-2 mb-2">
+                      <div class="h-3 w-24 rounded bg-muted"></div>
+                      <div class="h-5 w-16 rounded-full bg-muted"></div>
+                    </div>
+                    <div class="h-3.5 rounded bg-muted" [class]="ancho"></div>
+                  </div>
+                }
+              </div>
+            } @else if (gestiones().length === 0) {
               <div class="border-2 border-dashed border-border rounded-xl p-12 flex flex-col items-center justify-center text-center text-muted-foreground">
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="mb-3 opacity-60">
                   <path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/>
@@ -469,6 +488,17 @@ export class CuentaDetailPage {
 
   private refreshTrigger = signal(0);
   readonly loading = signal(true);
+  readonly filasEsqueleto = FILAS_ESQUELETO.slice(0, 5);
+  readonly esqueletoHistorial: CeldaEsqueleto[] = [
+    { ancho: 'w-16' },
+    { ancho: 'w-24' },
+    { ancho: 'w-20', alinear: 'derecha' },
+    { ancho: 'w-20', alinear: 'derecha' },
+    { ancho: 'w-16', forma: 'etiqueta' },
+    { ancho: 'w-20' },
+    { ancho: 'w-20', alinear: 'derecha' },
+    { forma: 'botones', botones: 2, alinear: 'derecha' },
+  ];
   readonly error = signal<string | null>(null);
 
   barOptions: ChartConfiguration<'bar'>['options'] = {

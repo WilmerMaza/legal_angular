@@ -10,25 +10,23 @@ import {
 import type { Cuenta } from '../../core/models';
 import { AuthService } from '../../core/services/auth.service';
 import { DataService } from '../../core/services/data.service';
+import { TutelasService, type TutelaInforme } from '../../core/services/tutelas.service';
 import { BalanceCard } from '../../shared/balance-card/balance-card';
+import { DetalleEsqueleto } from '../../shared/esqueleto/detalle-esqueleto';
+import { FILAS_ESQUELETO, FilaEsqueleto, type CeldaEsqueleto } from '../../shared/esqueleto/fila-esqueleto';
 import { StatusBadge } from '../../shared/status-badge/status-badge';
 import { fadeInUp, fadeInUpStagger } from '../../core/animations/animations';
 
 @Component({
   selector: 'app-cliente-portal-page',
   standalone: true,
-  imports: [BaseChartDirective, BalanceCard, StatusBadge],
+  imports: [BaseChartDirective, BalanceCard, DetalleEsqueleto, FilaEsqueleto, StatusBadge],
   animations: [fadeInUp, fadeInUpStagger],
   template: `
     <div class="min-h-screen page-container py-8">
       @if (error()) {
         <div class="mb-4 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {{ error() }}
-        </div>
-      }
-      @if (loading()) {
-        <div class="mb-4 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-          Cargando información...
         </div>
       }
       @if (cliente(); as c) {
@@ -54,21 +52,23 @@ import { fadeInUp, fadeInUpStagger } from '../../core/animations/animations';
         </div>
 
         <section class="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <app-balance-card label="Total cobrado" [amount]="totalCobrado()" icon="cobrado" [accentLeft]="true" />
-          <app-balance-card label="Total pagado" [amount]="totalPagado()" icon="pagado" [accentLeft]="true" />
+          <app-balance-card label="Total cobrado" [amount]="totalCobrado()" icon="cobrado" [accentLeft]="true" [loading]="loading()" />
+          <app-balance-card label="Total pagado" [amount]="totalPagado()" icon="pagado" [accentLeft]="true" [loading]="loading()" />
           <app-balance-card
             label="Deuda a la fecha"
             [amount]="totalDeuda()"
             variant="highlight"
             icon="saldo"
-            [accentLeft]="true"
+            [accentLeft]="true" [loading]="loading()"
           />
         </section>
 
         <section class="mb-10 grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div class="bg-card rounded-2xl shadow-card border border-border/50 p-4 sm:p-6 min-w-0">
             <h2 class="font-display font-semibold text-lg text-foreground mb-4">Cobrado vs Pagado por periodo</h2>
-            @if (hasHistorialChart()) {
+            @if (loading()) {
+              <div class="h-[260px] rounded-xl bg-muted animate-pulse" aria-hidden="true"></div>
+            } @else if (hasHistorialChart()) {
               <div class="h-[260px]">
                 <canvas baseChart [data]="barCobradoPagadoData()" [options]="barOptions" type="bar"></canvas>
               </div>
@@ -81,7 +81,9 @@ import { fadeInUp, fadeInUpStagger } from '../../core/animations/animations';
 
           <div class="bg-card rounded-2xl shadow-card border border-border/50 p-4 sm:p-6 min-w-0">
             <h2 class="font-display font-semibold text-lg text-foreground mb-4">Deuda a la fecha por edad en mora</h2>
-            @if (cuentas().length > 0) {
+            @if (loading()) {
+              <div class="h-[260px] rounded-xl bg-muted animate-pulse" aria-hidden="true"></div>
+            } @else if (cuentas().length > 0) {
               <div class="h-[280px]">
                 <canvas
                   baseChart
@@ -119,7 +121,12 @@ import { fadeInUp, fadeInUpStagger } from '../../core/animations/animations';
                     <th class="text-right px-4 sm:px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Deuda a la fecha</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody [attr.aria-busy]="loading()">
+                  @if (loading() && cuentas().length === 0) {
+                    @for (fila of filasEsqueleto; track fila) {
+                      <tr [appFilaEsqueleto]="esqueletoCuentas" celdaClass="px-4 sm:px-6 py-3" class="border-b border-border/50"></tr>
+                    }
+                  }
                   @for (p of cuentas(); track p.id; let i = $index) {
                     <tr [@fadeInUpStagger]="stagger(i)" class="border-b border-border/50">
                       <td class="px-4 sm:px-6 py-3">
@@ -152,7 +159,7 @@ import { fadeInUp, fadeInUpStagger } from '../../core/animations/animations';
                 </tbody>
               </table>
             </div>
-            @if (cuentas().length === 0) {
+            @if (!loading() && cuentas().length === 0) {
               <p class="text-center py-8 text-muted-foreground text-sm">No hay propiedades registradas.</p>
             }
           </div>
@@ -171,7 +178,12 @@ import { fadeInUp, fadeInUpStagger } from '../../core/animations/animations';
                     <th class="text-left px-4 sm:px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Etapa</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody [attr.aria-busy]="loading()">
+                  @if (loading() && procesosLegales().length === 0) {
+                    @for (fila of filasEsqueleto; track fila) {
+                      <tr [appFilaEsqueleto]="esqueletoProcesos" celdaClass="px-4 sm:px-6 py-3" class="border-b border-border/50"></tr>
+                    }
+                  }
                   @for (cu of procesosLegales(); track cu.id; let i = $index) {
                     <tr [@fadeInUpStagger]="stagger(i + 20)" class="border-b border-border/50">
                       <td class="px-4 sm:px-6 py-3 font-mono text-sm">{{ cu.numero_cuenta }}</td>
@@ -195,7 +207,7 @@ import { fadeInUp, fadeInUpStagger } from '../../core/animations/animations';
                 </tbody>
               </table>
             </div>
-            @if (procesosLegales().length === 0) {
+            @if (!loading() && procesosLegales().length === 0) {
               <p class="text-center py-8 text-muted-foreground text-sm">No hay radicados asociados.</p>
             }
           </div>
@@ -216,7 +228,12 @@ import { fadeInUp, fadeInUpStagger } from '../../core/animations/animations';
                     <th class="text-left px-4 sm:px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Estado</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody [attr.aria-busy]="loading()">
+                  @if (loading() && historialConCuenta().length === 0) {
+                    @for (fila of filasEsqueleto; track fila) {
+                      <tr [appFilaEsqueleto]="esqueletoHistorial" celdaClass="px-4 sm:px-6 py-3" class="border-b border-border/50"></tr>
+                    }
+                  }
                   @for (h of historialConCuenta(); track h.id; let i = $index) {
                     <tr [@fadeInUpStagger]="stagger(i + 40)" class="border-b border-border/50">
                       <td class="px-4 sm:px-6 py-3 text-sm">{{ h.cuenta }}</td>
@@ -235,11 +252,13 @@ import { fadeInUp, fadeInUpStagger } from '../../core/animations/animations';
                 </tbody>
               </table>
             </div>
-            @if (historialConCuenta().length === 0) {
+            @if (!loading() && historialConCuenta().length === 0) {
               <p class="text-center py-8 text-muted-foreground text-sm">No hay movimientos registrados.</p>
             }
           </div>
         </section>
+      } @else if (loading()) {
+        <app-detalle-esqueleto [hero]="false" />
       } @else {
         <p class="text-muted-foreground">No se pudo cargar tu información. Cierra sesión y vuelve a entrar.</p>
       }
@@ -285,6 +304,29 @@ export class ClientePortalPage {
 
   private readonly clienteId = computed(() => this.auth.currentUser()?.clienteId ?? null);
   readonly loading = signal(true);
+  readonly filasEsqueleto = FILAS_ESQUELETO.slice(0, 3);
+  readonly esqueletoCuentas: CeldaEsqueleto[] = [
+    { ancho: 'w-16', forma: 'etiqueta' },
+    { ancho: 'w-16' },
+    { ancho: 'w-32' },
+    { ancho: 'w-16', alinear: 'derecha' },
+    { ancho: 'w-20', alinear: 'derecha' },
+    { ancho: 'w-20', alinear: 'derecha' },
+  ];
+  readonly esqueletoProcesos: CeldaEsqueleto[] = [
+    { ancho: 'w-28' },
+    { ancho: 'w-20', forma: 'etiqueta' },
+    { ancho: 'w-20', forma: 'etiqueta' },
+    { ancho: 'w-24' },
+  ];
+  readonly esqueletoHistorial: CeldaEsqueleto[] = [
+    { ancho: 'w-16' },
+    { ancho: 'w-16' },
+    { ancho: 'w-24' },
+    { ancho: 'w-20', alinear: 'derecha' },
+    { ancho: 'w-20', alinear: 'derecha' },
+    { ancho: 'w-16', forma: 'etiqueta' },
+  ];
   readonly error = signal<string | null>(null);
 
   readonly cliente = computed(() => {
@@ -367,6 +409,9 @@ export class ClientePortalPage {
     }),
   );
 
+  private readonly tutelasService = inject(TutelasService);
+  private readonly tutelas = signal<TutelaInforme[]>([]);
+
   constructor() {
     void this.init();
   }
@@ -380,6 +425,7 @@ export class ClientePortalPage {
       cuentas: this.cuentas(),
       titulo: `Informe General – ${c.nombre}`,
       fecha: this.fechaInforme,
+      tutelas: this.tutelas(),
     });
   }
 
@@ -402,6 +448,10 @@ export class ClientePortalPage {
       await Promise.all([
         this.data.loadHistorialesForCuentas(propiedadesDetalle),
         this.data.loadGestionesForCuentas(propiedadesDetalle),
+        this.tutelasService
+          .listarParaInformeCliente(id)
+          .then((items) => this.tutelas.set(items))
+          .catch(() => this.tutelas.set([])),
       ]);
     } catch {
       this.error.set('No se pudo cargar la información del portal.');

@@ -54,9 +54,13 @@ type BalanceCardIcon =
         }
         <span class="text-sm font-medium text-muted-foreground">{{ label() }}</span>
       </div>
-      <p class="text-2xl font-bold tabular-nums text-foreground">
-        {{ isCurrency() ? data.formatCurrency(amount()) : amount() }}
-      </p>
+      @if (loading()) {
+        <div class="h-8 w-36 max-w-full rounded-md bg-muted animate-pulse" aria-hidden="true"></div>
+      } @else {
+        <p class="text-2xl font-bold tabular-nums text-foreground">
+          {{ isCurrency() ? data.formatCurrency(amount()) : amount() }}
+        </p>
+      }
     </div>
   `,
 })
@@ -69,6 +73,8 @@ export class BalanceCard {
   icon = input<BalanceCardIcon>();
   /** Franja vertical primary a la izquierda (ej. página Informes). */
   accentLeft = input<boolean>(false);
+  /** Muestra una barra pulsante en lugar del valor mientras carga. */
+  loading = input<boolean>(false);
 
   constructor(protected data: DataService) {}
 }

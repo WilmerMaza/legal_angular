@@ -22,6 +22,8 @@ import { CrearProcesoLegalDialog } from '../../components/crear-proceso-legal-di
 import { ReportPreviewDialog } from '../../components/report-preview-dialog/report-preview-dialog';
 import { BalanceCard } from '../../shared/balance-card/balance-card';
 import { DeudorCell } from '../../shared/deudor-cell/deudor-cell';
+import { DetalleEsqueleto } from '../../shared/esqueleto/detalle-esqueleto';
+import { FILAS_ESQUELETO, FilaEsqueleto, type CeldaEsqueleto } from '../../shared/esqueleto/fila-esqueleto';
 import { RecordatorioPeriodoChip } from '../../shared/recordatorio-periodo-chip/recordatorio-periodo-chip';
 import { StatusBadge } from '../../shared/status-badge/status-badge';
 import { fadeInUpStagger } from '../../core/animations/animations';
@@ -59,10 +61,14 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
     ClientReportDialog,
     CrearProcesoLegalDialog,
     ReportPreviewDialog,
+    DetalleEsqueleto,
+    FilaEsqueleto,
   ],
   animations: [fadeInUpStagger],
   template: `
-    @if (!cliente()) {
+    @if (!cliente() && loading()) {
+      <app-detalle-esqueleto class="min-h-screen pb-12" />
+    } @else if (!cliente()) {
       <div class="p-12 text-center text-muted-foreground">
         Cliente no encontrado.
         <a routerLink="/dashboard" class="ml-4 rounded-xl border border-border px-4 py-2">Volver</a>
@@ -92,11 +98,6 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
           @if (error()) {
             <div class="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
               {{ error() }}
-            </div>
-          }
-          @if (loading()) {
-            <div class="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-              Cargando detalle del cliente...
             </div>
           }
           <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -142,14 +143,14 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
                 [amount]="totalMonto()"
                 variant="highlight"
                 icon="saldo"
-                [accentLeft]="true"
+                [accentLeft]="true" [loading]="loading()"
               />
               @if (totalHonorarios() > 0) {
                 <app-balance-card
                   label="Honorarios"
                   [amount]="totalHonorarios()"
                   icon="honorarios"
-                  [accentLeft]="true"
+                  [accentLeft]="true" [loading]="loading()"
                 />
               }
               <button
@@ -221,7 +222,12 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
                     <th class="text-right px-1 py-3 text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap">Acciones</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody [attr.aria-busy]="loading()">
+                  @if (loading() && cuentas().length === 0) {
+                    @for (fila of filasEsqueleto; track fila) {
+                      <tr [appFilaEsqueleto]="esqueletoCuentas" celdaClass="px-4 py-3" class="border-b border-border/50"></tr>
+                    }
+                  }
                   @for (p of cuentas(); track p.id; let i = $index) {
                     <tr
                       [@fadeInUpStagger]="{ value: '', params: { delay: i * 50, duration: 200, offset: 5, ease: 'ease-out' } }"
@@ -401,7 +407,12 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
                     <th class="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Acciones</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody [attr.aria-busy]="loading()">
+                  @if (loading() && procesosLegales().length === 0) {
+                    @for (fila of filasEsqueleto.slice(0, 2); track fila) {
+                      <tr [appFilaEsqueleto]="esqueletoProcesos" celdaClass="px-4 py-3" class="border-b border-border/50"></tr>
+                    }
+                  }
                   @for (cu of procesosLegales(); track cu.id) {
                     <tr class="border-b border-border/50">
                       <td class="px-4 py-3 font-mono text-sm">{{ cu.numero_cuenta }}</td>
@@ -1041,6 +1052,26 @@ export class ClienteDetailPage {
   clienteEditLoading = signal(false);
   clienteEditError = signal<string | null>(null);
   readonly loading = signal(true);
+  readonly filasEsqueleto = FILAS_ESQUELETO.slice(0, 4);
+  readonly esqueletoCuentas: CeldaEsqueleto[] = [
+    { ancho: 'w-32' },
+    { ancho: 'w-16', forma: 'etiqueta' },
+    { ancho: 'w-16' },
+    { ancho: 'w-28' },
+    { ancho: 'w-16', alinear: 'derecha' },
+    { ancho: 'w-20', alinear: 'derecha' },
+    { ancho: 'w-20', alinear: 'derecha' },
+    { ancho: 'w-16', alinear: 'derecha' },
+    { ancho: 'w-14', forma: 'etiqueta', alinear: 'centro' },
+    { forma: 'botones', botones: 2, alinear: 'derecha' },
+  ];
+  readonly esqueletoProcesos: CeldaEsqueleto[] = [
+    { ancho: 'w-28' },
+    { ancho: 'w-20', forma: 'etiqueta' },
+    { ancho: 'w-20', forma: 'etiqueta' },
+    { ancho: 'w-24' },
+    { forma: 'botones', botones: 2, alinear: 'derecha' },
+  ];
   readonly error = signal<string | null>(null);
 
   clienteForm = this.fb.group({

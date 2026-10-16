@@ -73,6 +73,12 @@ export const routes: Routes = [
           import('./pages/tutelas-page/tutelas-page').then((m) => m.TutelasPage),
       },
       {
+        path: 'pqrs',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./pages/pqrs-page/pqrs-page').then((m) => m.PqrsPage),
+      },
+      {
         path: 'graficos',
         canActivate: [adminGuard],
         loadComponent: () =>

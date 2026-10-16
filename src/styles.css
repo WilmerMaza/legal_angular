@@ -144,6 +144,37 @@ body {
   min-width: 600px;
 }
 
+/* Columna fija a la izquierda: sirve de guía al desplazar la tabla horizontalmente */
+.table-wrap .col-fija {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background-color: var(--card);
+}
+.table-wrap thead .col-fija {
+  z-index: 2;
+  background-color: color-mix(in oklch, var(--muted) 20%, var(--card));
+}
+.table-wrap tbody tr:hover .col-fija {
+  background-color: color-mix(in oklch, var(--muted) 30%, var(--card));
+}
+
+/* Encabezados fijos: el sticky top necesita que el propio contenedor haga el scroll vertical */
+.table-wrap.cabecera-fija {
+  max-height: calc(100dvh - 9rem);
+  overflow-y: auto;
+}
+.table-wrap.cabecera-fija thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background-color: color-mix(in oklch, var(--muted) 20%, var(--card));
+  box-shadow: inset 0 -1px 0 var(--border);
+}
+.table-wrap.cabecera-fija thead th.col-fija {
+  z-index: 3;
+}
+
 /* Tooltips en celdas de deudor: no recortar al hacer hover */
 .table-wrap table td.deudor-col,
 .table-wrap table th.deudor-col {
