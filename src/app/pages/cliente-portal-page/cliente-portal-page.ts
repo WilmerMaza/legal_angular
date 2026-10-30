@@ -145,7 +145,7 @@ import { fadeInUp, fadeInUpStagger } from '../../core/animations/animations';
                           {{ data.formatDiasMora(resumenCobro(p).edad_mora_dias) }}
                         </div>
                         <div class="text-xs text-muted-foreground mt-1 leading-snug line-clamp-2">
-                          {{ data.formatEtapaCobranzaCorta(resumenCobro(p).edad_mora_dias) }}
+                          {{ data.formatEtapaCobranzaCorta(resumenCobro(p).edad_mora_dias, resumenCobro(p).deuda) }}
                         </div>
                       </td>
                       <td class="px-4 sm:px-6 py-3 text-right font-mono text-sm">

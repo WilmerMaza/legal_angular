@@ -2,6 +2,7 @@ import { Component, computed, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import type { Cliente, Cuenta } from '../../core/models';
 import { DataService } from '../../core/services/data.service';
+import { ETAPAS_PROCESO_ORDENADAS, type EtapaProceso } from '../../core/proceso-etapas';
 import { DeudorCell } from '../../shared/deudor-cell/deudor-cell';
 import { FILAS_ESQUELETO, FilaEsqueleto, type CeldaEsqueleto } from '../../shared/esqueleto/fila-esqueleto';
 import { RecordatorioPeriodoChip } from '../../shared/recordatorio-periodo-chip/recordatorio-periodo-chip';
@@ -124,6 +125,31 @@ type CuentaConCliente = Cuenta & { cliente?: Cliente };
                 <path d="m6 9 6 6 6-6" />
               </svg>
             </div>
+            <div class="relative shrink-0 sm:w-[220px]">
+              <select
+                [value]="filterEtapa()"
+                (change)="filterEtapa.set($any($event.target).value)"
+                class="w-full appearance-none rounded-xl border border-input bg-background px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="todas">Todas las etapas</option>
+                <option value="pre_juridico">PRE-JURÍDICO</option>
+                @for (etapa of etapasProceso; track etapa.value) {
+                  <option [value]="etapa.value">{{ etapa.label }}</option>
+                }
+              </select>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
+              >
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </div>
           </div>
         </div>
 
@@ -146,6 +172,12 @@ type CuentaConCliente = Cuenta & { cliente?: Cliente };
                   </th>
                   <th class="text-left px-5 sm:px-6 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                     Tipo
+                  </th>
+                  <th
+                    class="text-left px-5 sm:px-6 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide"
+                    title="PRE-JURÍDICO si aún no tiene radicado; si no, tipo del proceso"
+                  >
+                    Proceso
                   </th>
                   <th
                     class="text-right px-5 sm:px-6 py-3.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide max-w-[12rem]"
@@ -175,7 +207,7 @@ type CuentaConCliente = Cuenta & { cliente?: Cliente };
                 }
                 @for (group of grouped(); track group.clienteId; let gi = $index) {
                   <tr class="border-b border-border/60 bg-muted/30">
-                    <td colspan="9" class="px-5 sm:px-6 py-2.5">
+                    <td colspan="10" class="px-5 sm:px-6 py-2.5">
                       <div class="flex flex-wrap items-center justify-between gap-2">
                         <a
                           [routerLink]="['/clientes', group.clienteId]"
@@ -210,6 +242,12 @@ type CuentaConCliente = Cuenta & { cliente?: Cliente };
                           [variant]="prop.tipo_cuenta"
                         />
                       </td>
+                      <td class="px-5 sm:px-6 py-4">
+                        <app-status-badge
+                          [label]="data.getClasificacionProcesoCuenta(prop.id).label"
+                          [variant]="data.variantClasificacionProcesoCuenta(prop.id)"
+                        />
+                      </td>
                       <td
                         class="px-5 sm:px-6 py-4 text-right text-sm align-top max-w-[13rem]"
                         [title]="data.formatResumenMoraTooltip(resumenCobro(prop))"
@@ -218,7 +256,7 @@ type CuentaConCliente = Cuenta & { cliente?: Cliente };
                           {{ data.formatDiasMora(resumenCobro(prop).edad_mora_dias) }}
                         </div>
                         <div class="text-xs text-muted-foreground mt-1 leading-snug line-clamp-2">
-                          {{ data.formatEtapaCobranzaCorta(resumenCobro(prop).edad_mora_dias) }}
+                          {{ data.formatEtapaCobranzaCorta(resumenCobro(prop).edad_mora_dias, resumenCobro(prop).deuda) }}
                         </div>
                       </td>
                       <td class="px-5 sm:px-6 py-4 text-right text-sm font-semibold tabular-nums text-foreground">
@@ -264,6 +302,7 @@ export class CuentasPage {
     { ancho: 'w-28' },
     { ancho: 'w-28' },
     { ancho: 'w-20', forma: 'etiqueta' },
+    { ancho: 'w-20', forma: 'etiqueta' },
     { ancho: 'w-16', alinear: 'derecha' },
     { ancho: 'w-24', alinear: 'derecha' },
     { ancho: 'w-16', forma: 'etiqueta', alinear: 'centro' },
@@ -273,6 +312,8 @@ export class CuentasPage {
   search = signal('');
   filterTipo = signal('todos');
   filterMora = signal('todas');
+  filterEtapa = signal('todas');
+  readonly etapasProceso = ETAPAS_PROCESO_ORDENADAS;
 
   propiedadesConCliente = computed(() =>
     this.data.mockCuentas.map((p) => ({
@@ -285,6 +326,7 @@ export class CuentasPage {
     const s = this.search().toLowerCase();
     const tip = this.filterTipo();
     const mora = this.filterMora();
+    const etapa = this.filterEtapa();
     return this.propiedadesConCliente().filter((p) => {
       const matchSearch =
         !s ||
@@ -312,7 +354,8 @@ export class CuentasPage {
         (mora === '31_60' && n !== null && n >= 31 && n <= 60) ||
         (mora === '61_90' && n !== null && n >= 61 && n <= 90) ||
         (mora === '91_mas' && n !== null && n >= 91);
-      return matchSearch && matchTipo && matchMora;
+      const matchEtapa = this.cuentaCoincideEtapa(p.id, etapa);
+      return matchSearch && matchTipo && matchMora && matchEtapa;
     });
   });
 
@@ -347,7 +390,11 @@ export class CuentasPage {
     this.loading.set(true);
     this.error.set(null);
     try {
-      await Promise.all([this.data.loadClientes(), this.data.loadCuentas()]);
+      await Promise.all([
+        this.data.loadClientes(),
+        this.data.loadCuentas(),
+        this.data.loadAllProcesosLegales(),
+      ]);
       await Promise.all([
         this.data.loadAllGestiones(),
         this.data.loadHistorialesMissingEdadMora(this.data.mockCuentas),
@@ -382,6 +429,13 @@ export class CuentasPage {
 
   protected resumenCobro(p: Cuenta) {
     return this.data.getResumenMoraCobroParaCuenta(p);
+  }
+
+  private cuentaCoincideEtapa(cuentaId: string, filtro: string): boolean {
+    if (filtro === 'todas') return true;
+    const procesos = this.data.mockProcesosLegales.filter((p) => p.cuenta_id === cuentaId);
+    if (filtro === 'pre_juridico') return procesos.length === 0;
+    return procesos.some((p) => p.etapa_proceso === (filtro as EtapaProceso));
   }
 
   protected toNumber(value: unknown): number {

@@ -7,16 +7,13 @@ import {
   buildClienteCobradoPagadoChartData,
   buildClienteDeudaPorCuentaChartData,
   buildClienteHonorariosPorCuentaChartData,
-  buildClienteRecaudoUltimosMesesChartData,
   buildClienteResumenFinancieroChartData,
   buildClienteUnidadesPorEdadMoraChartData,
   buildEdadMoraChartOptions,
   buildHistorialConCuenta,
-  CLIENT_CHART_BAR_BY_PERIODO_HORIZONTAL_OPTIONS,
   CLIENT_CHART_BAR_HORIZONTAL_OPTIONS,
   CLIENT_CHART_BAR_OPTIONS,
   CLIENT_CHART_DOUGHNUT_OPTIONS,
-  type RecaudoMesesVentana,
   type ReportChartPalette,
   unidadesEjeYFromEdadMoraChartData,
 } from './client-chart-data';
@@ -75,6 +72,7 @@ export function resumenCuentaPdfRow(data: DataService, row: ClientReportResumenR
       fecha_inicio_cobro: row.fecha_inicio_cobro,
       fecha_fin_cobro: row.fecha_fin_cobro,
       fecha_alta: row.fecha_alta,
+      deuda: row.deuda,
     })
     .replace(/\n/g, ' | ');
   return [
@@ -93,7 +91,6 @@ export type ClientReportChartImages = {
   deudaPorUnidad: ChartPngResult | null;
   honorariosPorUnidad: ChartPngResult | null;
   cobradoPagado: ChartPngResult | null;
-  pagadoPorPeriodo: ChartPngResult | null;
   unidadesPorEdadMora: ChartPngResult | null;
 };
 
@@ -101,10 +98,9 @@ export type ClientReportChartImages = {
 export function buildClientReportChartImages(
   data: DataService,
   cuentas: Cuenta[],
-  options?: { palette?: ReportChartPalette; recaudoMeses?: RecaudoMesesVentana },
+  options?: { palette?: ReportChartPalette },
 ): ClientReportChartImages {
   const palette = options?.palette ?? 'morado';
-  const recaudoMeses = options?.recaudoMeses ?? 3;
   const historial = buildHistorialConCuenta(data, cuentas);
 
   const cobrado = cuentas.reduce((sum, p) => sum + data.getTotalCobradoParaCuenta(p), 0);
@@ -167,18 +163,6 @@ export function buildClientReportChartImages(
         )
       : null;
 
-  const pagadoPorPeriodo = renderChartToPng(
-    {
-      type: 'bar',
-      data: buildClienteRecaudoUltimosMesesChartData(historial, recaudoMeses, { palette }),
-      options: CLIENT_CHART_BAR_BY_PERIODO_HORIZONTAL_OPTIONS,
-    },
-    {
-      width: 900,
-      height: Math.min(700, Math.max(280, 56 + recaudoMeses * 36)),
-    },
-  );
-
   const unidadesPorEdadMoraData =
     cuentas.length > 0
       ? buildClienteUnidadesPorEdadMoraChartData(data, cuentas, { palette })
@@ -201,7 +185,6 @@ export function buildClientReportChartImages(
     deudaPorUnidad,
     honorariosPorUnidad,
     cobradoPagado,
-    pagadoPorPeriodo,
     unidadesPorEdadMora,
   };
 }
@@ -241,7 +224,6 @@ export function downloadClientGeneralReportPdf(options: {
   notas?: string;
   fecha?: string;
   chartPalette?: ReportChartPalette;
-  recaudoMeses?: RecaudoMesesVentana;
   tutelas?: TutelaInforme[];
 }): void {
   const { data, cliente, cuentas } = options;
@@ -254,8 +236,6 @@ export function downloadClientGeneralReportPdf(options: {
       year: 'numeric',
     });
   const notas = options.notas?.trim();
-  const recaudoMeses = options.recaudoMeses ?? 3;
-
   const totalCobrado = cuentas.reduce((sum, p) => sum + data.getTotalCobradoParaCuenta(p), 0);
   const totalPagado = cuentas.reduce((sum, p) => sum + data.getTotalPagadoParaCuenta(p), 0);
   const saldo = cuentas.reduce((sum, p) => sum + data.getDeudaActualParaCuenta(p), 0);
@@ -263,11 +243,10 @@ export function downloadClientGeneralReportPdf(options: {
   const resumen = buildClientReportResumenRows(data, cuentas);
   const transacciones = cuentas.flatMap((p) => {
     const hist = data.getHistorialByCuenta(p.id);
-    return hist.map((h) => ({ ...h, cuenta: p.identificador }));
+    return hist.map((h) => ({ ...h, cuenta: p.identificador, cuentaRef: p }));
   });
   const charts = buildClientReportChartImages(data, cuentas, {
     palette: options.chartPalette ?? 'morado',
-    recaudoMeses,
   });
 
   const doc = new jsPDF();
@@ -313,14 +292,6 @@ export function downloadClientGeneralReportPdf(options: {
       startY,
     );
   }
-  if (charts.pagadoPorPeriodo) {
-    startY = appendChartToPdf(
-      doc,
-      `Pagado por periodo (últimos ${recaudoMeses} meses)`,
-      charts.pagadoPorPeriodo,
-      startY,
-    );
-  }
   if (charts.unidadesPorEdadMora) {
     startY = appendChartToPdf(
       doc,
@@ -345,19 +316,24 @@ export function downloadClientGeneralReportPdf(options: {
   const docLt = doc as unknown as { lastAutoTable?: { finalY: number } };
   const yAfterResumen = docLt.lastAutoTable?.finalY ?? startY + 24;
   doc.setFontSize(11);
-  doc.text('Detalle de transacciones', 14, yAfterResumen + 8);
+  doc.text('Historial de pagos', 14, yAfterResumen + 8);
   doc.setFontSize(10);
   autoTable(doc, {
     startY: yAfterResumen + 14,
-    head: [['Cuenta', 'Periodo', 'Concepto', 'Cobrado', 'Pagado', 'Estado']],
-    body: transacciones.map((h) => [
-      h.cuenta,
-      h.periodo,
-      data.conceptoLabels[h.concepto],
-      data.formatCurrency(h.valor_cobrado),
-      data.formatCurrency(h.valor_pagado),
-      data.estadoPagoLabels[h.estado_pago],
-    ]),
+    head: [['Cuenta', 'Periodo', 'Concepto', 'Valor cobrado', 'Valor pagado', 'Estado', 'Fecha pago', 'Deuda a la fecha']],
+    body:
+      transacciones.length > 0
+        ? transacciones.map((h) => [
+            h.cuenta,
+            h.periodo,
+            data.conceptoLabels[h.concepto],
+            data.formatCurrency(h.valor_cobrado),
+            data.formatCurrency(h.valor_pagado),
+            data.estadoPagoLabels[h.estado_pago],
+            data.formatFechaPago(h),
+            data.formatDeuda(data.getDeudaParaHistorialPago(h.cuentaRef, h)),
+          ])
+        : [['Sin historial de pagos', '—', '—', '—', '—', '—', '—', '—']],
     styles: { fontSize: 8 },
     headStyles: { fillColor: [107, 60, 200] },
   });

@@ -21,6 +21,7 @@ const PCT_JURIDICA_POR_ETAPA: Record<EtapaProceso, number | null> = {
   liquidacion_del_credito: 20,
   remate: 20,
   rechazado: 15,
+  suspendido: null,
   terminacion: null,
 };
 
@@ -28,6 +29,7 @@ const PCT_JURIDICA_POR_ETAPA: Record<EtapaProceso, number | null> = {
 const PCT_POR_ETAPA_COBRANZA: Record<EtapaCobranzaCodigo, number | null> = {
   sin_dato: null,
   al_dia: null,
+  terminado: null,
   persuasivo_1_30: 10,
   persuasivo_31_60: 10,
   probable_juridico_61_90: 10,
@@ -110,7 +112,9 @@ export function calcularHonorarios(input: {
           ? 'PRE-JURÍDICO'
           : input.tipo === 'acuerdo_de_pago'
             ? 'ACUERDO DE PAGO'
-            : '';
+            : input.tipo === 'juridica'
+              ? 'RADICADO'
+              : '';
     return {
       porcentaje: pctProceso,
       monto,

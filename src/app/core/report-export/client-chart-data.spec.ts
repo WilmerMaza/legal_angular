@@ -46,7 +46,7 @@ describe('buildClienteUnidadesPorEdadMoraChartData', () => {
     ];
     const chart = buildClienteUnidadesPorEdadMoraChartData(data, cuentas);
     expect(chart.labels?.[1]).toEqual(['1–30 d', '$50.000']);
-    expect(chart.datasets[0]!.data).toEqual([0, 5, 0, 0, 0]);
+    expect(chart.datasets[0]!.data).toEqual([0, 5, 0, 0, 0, 0]);
     expect(unidadesEjeYFromEdadMoraChartData(chart)).toEqual([
       'Apto 101',
       'Apto 102',
@@ -65,7 +65,7 @@ describe('buildClienteUnidadesPorEdadMoraChartData', () => {
       cuenta({ id: '5', identificador: 'Apto 301', edad_mora_dias: 120, monto_a_la_fecha: 100_000 }),
     ];
     const chart = buildClienteUnidadesPorEdadMoraChartData(data, cuentas);
-    expect(chart.datasets[0]!.data).toEqual([0, 1, 3, 0, 1]);
+    expect(chart.datasets[0]!.data).toEqual([0, 1, 3, 0, 1, 0]);
   });
 
   it('detalle lista aptos y deuda por rango', () => {
@@ -77,5 +77,17 @@ describe('buildClienteUnidadesPorEdadMoraChartData', () => {
     const rango3160 = detalle.find((b) => b.codigo === 'persuasivo_31_60');
     expect(rango3160?.count).toBe(2);
     expect(rango3160?.deuda).toBe(20_000);
+  });
+
+  it('una unidad saldada sigue en la estadística, marcada como terminada', () => {
+    const cuentas = [
+      cuenta({ id: '1', identificador: 'Apto 101', edad_mora_dias: 0, monto_a_la_fecha: 0 }),
+      cuenta({ id: '2', identificador: 'Apto 102', edad_mora_dias: 45, monto_a_la_fecha: 8_000 }),
+    ];
+    const detalle = buildClienteEdadMoraBucketDetalle(data, cuentas);
+    const terminado = detalle.find((b) => b.codigo === 'terminado');
+    expect(terminado?.count).toBe(1);
+    expect(terminado?.unidades).toEqual(['Apto 101']);
+    expect(detalle.reduce((sum, b) => sum + b.count, 0)).toBe(2);
   });
 });

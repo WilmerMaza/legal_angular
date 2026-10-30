@@ -1,4 +1,4 @@
-import { Component, effect, input, output, signal } from '@angular/core';
+import { Component, computed, effect, input, output, signal } from '@angular/core';
 import { DataService } from '../../core/services/data.service';
 import type { ProcesoLegal, EstadoProcesoLegal, EtapaProceso, Cuenta, TipoProcesoLegal } from '../../core/models';
 import {
@@ -10,6 +10,7 @@ import {
   ETAPAS_PROCESO_ORDENADAS,
   coerceEtapaProceso,
 } from '../../core/proceso-etapas';
+import { TIPOS_PROCESO_LEGAL_UI } from '../../core/proceso-tipo';
 import { mapProcesoLegalSaveError } from './proceso-legal-save-error';
 
 @Component({
@@ -53,13 +54,13 @@ import { mapProcesoLegalSaveError } from './proceso-legal-save-error';
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label class="block text-sm font-medium text-foreground mb-1.5">Tipo de cuenta</label>
+              <label class="block text-sm font-medium text-foreground mb-1.5">Tipo de proceso</label>
               <select
                 [value]="tipo()"
                 (change)="tipo.set($any($event.target).value)"
                 class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               >
-                @for (opt of tipoOpciones; track opt.value) {
+                @for (opt of tipoOpciones(); track opt.value) {
                   <option [value]="opt.value">{{ opt.label }}</option>
                 }
               </select>
@@ -153,15 +154,18 @@ export class CrearProcesoLegalDialog {
   saving = signal(false);
   errorMsg = signal<string | null>(null);
 
-  tipoOpciones: Array<{ value: TipoProcesoLegal; label: string }> = [
-    { value: 'juridica', label: 'JURÍDICO' },
-    { value: 'extrajudicial', label: 'PRE-JURÍDICO' },
-    { value: 'acuerdo_de_pago', label: 'ACUERDO DE PAGO' },
-  ];
+  /** Solo RADICADO y ACUERDO DE PAGO. PRE-JURÍDICO es la propiedad sin radicado. */
+  tipoOpciones = computed(() => {
+    const opts = [...TIPOS_PROCESO_LEGAL_UI];
+    if (this.tipo() === 'extrajudicial') {
+      opts.push({ value: 'extrajudicial', label: 'PRE-JURÍDICO (legado)' });
+    }
+    return opts;
+  });
 
   estadoOpciones: Array<{ value: EstadoProcesoLegal; label: string }> = ESTADOS_PROCESO_LEGAL_UI;
 
-  /** Catálogo de 13 etapas del proceso de radicación (fuente: proceso-etapas.ts). */
+  /** Catálogo de etapas del proceso de radicación (fuente: proceso-etapas.ts). */
   readonly etapasProceso = ETAPAS_PROCESO_ORDENADAS;
 
   /**
@@ -198,7 +202,8 @@ export class CrearProcesoLegalDialog {
 
   private coerceTipo(v: unknown): TipoProcesoLegal {
     const s = String(v ?? '').trim() as TipoProcesoLegal;
-    return this.tipoOpciones.some((o) => o.value === s) ? s : 'juridica';
+    if (s === 'juridica' || s === 'acuerdo_de_pago' || s === 'extrajudicial') return s;
+    return 'juridica';
   }
 
   private coerceEstado(v: unknown): EstadoProcesoLegal {

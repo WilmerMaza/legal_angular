@@ -242,6 +242,44 @@ describe('DataService', () => {
     expect(service.formatEtapaCobranza(resumen.edad_mora_dias)).not.toBe('Sin dato de mora');
   });
 
+  it('deuda en 0 con historial se marca terminada y no conserva la edad de mora', () => {
+    const cuenta: Cuenta = {
+      id: 'prop-saldada',
+      cliente_id: 'cliente-1',
+      tipo_cuenta: 'apartamento',
+      identificador: 'Apto Saldado',
+      direccion: 'Calle 1',
+      notas: '',
+      ...sampleCobroCuenta,
+      saldo_inicial: 1000,
+      monto_a_la_fecha: 0,
+      created_at: '2026-01-01T00:00:00.000Z',
+      edad_mora_dias: 90,
+    };
+    service['historialByCuentaSignal'].set({
+      'prop-saldada': [
+        {
+          id: 'h-saldada',
+          cuenta_id: 'prop-saldada',
+          periodo: '2026-01',
+          concepto: 'administracion',
+          valor_cobrado: 1000,
+          valor_pagado: 1000,
+          fecha_pago: '2026-02-10',
+          estado_pago: 'pagado',
+          monto_a_la_fecha: 0,
+          observaciones: '',
+          created_at: '2026-01-01T00:00:00.000Z',
+        },
+      ],
+    });
+    const resumen = service.getResumenMoraCobroParaCuenta(cuenta);
+    expect(resumen.deuda).toBe(0);
+    expect(resumen.edad_mora_dias).toBe(0);
+    expect(service.formatEtapaCobranza(resumen.edad_mora_dias, resumen.deuda)).toBe('Terminado');
+    expect(service.formatEtapaCobranzaCorta(resumen.edad_mora_dias, resumen.deuda)).toBe('Terminado');
+  });
+
   it('findClienteDuplicado detecta documento con formato distinto', () => {
     service['clientesSignal'].set([
       {

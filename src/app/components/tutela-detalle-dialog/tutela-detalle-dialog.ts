@@ -1,16 +1,21 @@
 import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import type { HistorialCambio } from '../../core/historial-cambios';
+import {
+  TUTELAS_TRAZABILIDAD_HEADERS,
+  buildTutelasTrazabilidadRows,
+} from '../../core/report-export/tutelas-report';
 import { DataService } from '../../core/services/data.service';
 import { TutelasService, plazoTutela, type Tutela } from '../../core/services/tutelas.service';
 import { labelEtapaTutela } from '../../core/tutela-etapas';
 import { diasHabilesEntre, todayBogotaYmd } from '../../core/utils/dias-habiles-co';
 import { HistorialCambios } from '../../shared/historial-cambios/historial-cambios';
 import { StatusBadge } from '../../shared/status-badge/status-badge';
+import { InformeDialog, type CampoInforme, type SeccionInforme } from '../informe-dialog/informe-dialog';
 
 @Component({
   selector: 'app-tutela-detalle-dialog',
   standalone: true,
-  imports: [HistorialCambios, StatusBadge],
+  imports: [HistorialCambios, InformeDialog, StatusBadge],
   template: `
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="fixed inset-0 bg-black/50" (click)="openChange.emit(false)"></div>
@@ -110,6 +115,14 @@ import { StatusBadge } from '../../shared/status-badge/status-badge';
           </button>
           <button
             type="button"
+            (click)="generarInforme()"
+            class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-primary text-primary px-4 py-2.5 text-sm font-medium hover:bg-primary/5"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>
+            Generar informe
+          </button>
+          <button
+            type="button"
             (click)="editar.emit(tutela())"
             class="w-full rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:opacity-90"
           >
@@ -117,6 +130,16 @@ import { StatusBadge } from '../../shared/status-badge/status-badge';
           </button>
         </div>
       </div>
+      @if (informeOpen()) {
+        <app-informe-dialog
+          [titulo]="tituloInforme()"
+          [detalle]="detalleInforme()"
+          [campos]="camposInforme()"
+          [secciones]="seccionesInforme()"
+          [nombreArchivo]="nombreArchivoInforme()"
+          (openChange)="informeOpen.set($event)"
+        />
+      }
     </div>
   `,
 })
@@ -131,6 +154,7 @@ export class TutelaDetalleDialog implements OnInit {
   readonly historial = signal<HistorialCambio[]>([]);
   readonly historialLoading = signal(true);
   readonly historialError = signal<string | null>(null);
+  readonly informeOpen = signal(false);
 
   private readonly hoy = todayBogotaYmd();
 
@@ -143,6 +167,70 @@ export class TutelaDetalleDialog implements OnInit {
       this.historialLoading.set(false);
     }
   }
+
+  generarInforme(): void {
+    this.informeOpen.set(true);
+  }
+
+  readonly tituloInforme = computed(() => `Informe de tutela · ${this.tutela().radicado || this.tutela().accionante}`);
+
+  readonly nombreArchivoInforme = computed(() => {
+    const base = this.tutela().radicado || this.tutela().accionante || 'tutela';
+    return `informe_tutela_${base}`;
+  });
+
+  readonly detalleInforme = computed(() => {
+    if (this.historialLoading()) return 'La trazabilidad todavía se está cargando.';
+    if (this.historialError()) return this.historialError() ?? '';
+    return `${this.tutela().accionante} contra ${this.tutela().accionado}.`;
+  });
+
+  readonly camposInforme = computed((): CampoInforme[] => {
+    const t = this.tutela();
+    const plazo = this.plazoTexto();
+    const vencimiento = this.data.formatFechaCorta(t.vencimiento);
+    return [
+      { etiqueta: 'Accionante', valor: t.accionante },
+      { etiqueta: 'Accionado', valor: t.accionado },
+      { etiqueta: 'Radicado', valor: t.radicado || '—' },
+      { etiqueta: 'Juzgado', valor: t.juzgado || '—' },
+      { etiqueta: 'Radicación', valor: this.data.formatFechaCorta(t.fecha_radicacion) },
+      { etiqueta: 'Vencimiento', valor: plazo ? `${vencimiento} · ${plazo}` : vencimiento },
+      {
+        etiqueta: 'Etapa',
+        valor: t.fecha_etapa ? `${this.etapaLabel()} (desde ${this.data.formatFechaCorta(t.fecha_etapa)})` : this.etapaLabel(),
+      },
+      { etiqueta: 'Derecho', valor: t.derecho },
+      { etiqueta: 'Cliente', valor: t.cliente_nombre || 'Sin cliente asociado' },
+      { etiqueta: 'Nota', valor: t.nota || '—' },
+    ];
+  });
+
+  readonly seccionesInforme = computed((): SeccionInforme[] => {
+    const t = this.tutela();
+    return [
+      {
+        titulo: 'Trazabilidad',
+        headers: [...TUTELAS_TRAZABILIDAD_HEADERS],
+        rows: buildTutelasTrazabilidadRows([
+          {
+            id: t.id,
+            radicado: t.radicado,
+            juzgado: t.juzgado,
+            accionante: t.accionante,
+            accionado: t.accionado,
+            derecho: t.derecho,
+            etapa: t.etapa,
+            fecha_radicacion: t.fecha_radicacion,
+            fecha_etapa: t.fecha_etapa,
+            vencimiento: t.vencimiento,
+            created_at: t.created_at,
+            historial: this.historial(),
+          },
+        ]),
+      },
+    ];
+  });
 
   readonly etapaLabel = computed(() => labelEtapaTutela(this.tutela().etapa));
 

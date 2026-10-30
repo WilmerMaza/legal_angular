@@ -266,6 +266,7 @@ export const EDAD_MORA_CHART_BUCKETS = [
   { codigo: 'persuasivo_31_60' as const, label: '31–60 d' },
   { codigo: 'probable_juridico_61_90' as const, label: '61–90 d' },
   { codigo: 'juridico_mas_90' as const, label: '>90 d' },
+  { codigo: 'terminado' as const, label: 'Terminado' },
 ] as const;
 
 const EDAD_MORA_BUCKET_COLORS: Record<(typeof EDAD_MORA_CHART_BUCKETS)[number]['codigo'], string> = {
@@ -274,6 +275,7 @@ const EDAD_MORA_BUCKET_COLORS: Record<(typeof EDAD_MORA_CHART_BUCKETS)[number]['
   persuasivo_31_60: '#eab308',
   probable_juridico_61_90: '#f97316',
   juridico_mas_90: '#ef4444',
+  terminado: '#64748b',
 };
 
 /**
@@ -294,6 +296,7 @@ export function buildClienteEdadMoraBucketDetalle(
   const byCodigo: Record<EtapaCobranzaCodigo, string[]> = {
     sin_dato: [],
     al_dia: [],
+    terminado: [],
     persuasivo_1_30: [],
     persuasivo_31_60: [],
     probable_juridico_61_90: [],
@@ -302,6 +305,7 @@ export function buildClienteEdadMoraBucketDetalle(
   const deudaByCodigo: Record<EtapaCobranzaCodigo, number> = {
     sin_dato: 0,
     al_dia: 0,
+    terminado: 0,
     persuasivo_1_30: 0,
     persuasivo_31_60: 0,
     probable_juridico_61_90: 0,
@@ -310,9 +314,10 @@ export function buildClienteEdadMoraBucketDetalle(
 
   for (const cuenta of cuentas) {
     const dias = data.getResumenMoraCobroParaCuenta(cuenta).edad_mora_dias;
-    const codigo = clasificarEtapaCobranza(dias);
+    const deuda = data.getDeudaActualParaCuenta(cuenta);
+    const codigo = clasificarEtapaCobranza(dias, deuda);
     byCodigo[codigo].push(cuenta.identificador?.trim() || '—');
-    deudaByCodigo[codigo] += data.getDeudaActualParaCuenta(cuenta);
+    deudaByCodigo[codigo] += deuda;
   }
 
   const chartBuckets: EdadMoraBucketDetalle[] = EDAD_MORA_CHART_BUCKETS.map((b) => ({
