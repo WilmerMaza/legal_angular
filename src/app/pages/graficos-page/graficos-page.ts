@@ -48,13 +48,19 @@ import { pickClienteMasAntiguo } from '../../core/mora-por-cliente';
         }
         <div
           [@fadeInUp]="{ value: '', params: { delay: 0, duration: 400, offset: 10, ease: 'ease-out' } }"
-          class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"
+          class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4"
         >
           <app-balance-card
             label="CARTERA TOTAL"
             [amount]="totalCartera()"
             variant="highlight"
             icon="cartera"
+            [accentLeft]="true" [loading]="loading()"
+          />
+          <app-balance-card
+            label="ABONO GENERAL"
+            [amount]="totalRecogido()"
+            icon="pagado"
             [accentLeft]="true" [loading]="loading()"
           />
           <app-balance-card
@@ -186,6 +192,41 @@ import { pickClienteMasAntiguo } from '../../core/mora-por-cliente';
             </div>
           }
         </div>
+
+        <div
+          [@fadeInUp]="{ value: '', params: { delay: 250, duration: 400, offset: 10, ease: 'ease-out' } }"
+          class="interactive-card bg-card rounded-2xl shadow-card p-4 sm:p-6 border border-border/50 min-w-0"
+        >
+          <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+            <h3 class="font-display font-bold text-foreground">Abono general por cliente</h3>
+            @if (totalRecogido() > 0) {
+              <p class="text-xs text-muted-foreground">
+                Total: <strong class="text-foreground">{{ data.formatCurrency(totalRecogido()) }}</strong>
+              </p>
+            }
+          </div>
+          @if (loading()) {
+            <div class="h-[250px] rounded-xl bg-muted animate-pulse" aria-hidden="true"></div>
+          } @else if (hasAbonosClienteData()) {
+            @if (abonosChartTruncado()) {
+              <p class="text-xs text-muted-foreground mb-2">
+                Mostrando los {{ abonosChartRows().length }} clientes con mayor abono.
+              </p>
+            }
+            <div class="h-[250px]">
+              <canvas
+                baseChart
+                [data]="barAbonosClienteData()"
+                [options]="barAbonosClienteOptions()"
+                type="bar"
+              ></canvas>
+            </div>
+          } @else {
+            <div class="h-[250px] rounded-xl bg-muted/30 flex items-center justify-center text-sm text-muted-foreground text-center px-6">
+              No hay abonos registrados para graficar.
+            </div>
+          }
+        </div>
       </div>
 
       @if (reportOpen()) {
@@ -205,6 +246,7 @@ export class GraficosPage {
   pieOptions: ChartConfiguration<'pie'>['options'] = { responsive: true, maintainAspectRatio: false };
 
   totalCartera = computed(() => this.data.getTotalCartera());
+  totalRecogido = computed(() => this.data.getTotalRecogido());
   totalHonorarios = computed(() => this.data.getTotalHonorarios());
   clientesCount = computed(() => this.data.mockClientes.length);
   propiedadesCount = computed(() => this.data.mockCuentas.length);
@@ -386,6 +428,70 @@ export class GraficosPage {
             label: (item) => {
               const v = typeof item.raw === 'number' ? item.raw : Number(item.raw);
               return `Honorarios: ${this.data.formatCurrency(Number.isFinite(v) ? v : 0)}`;
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { maxRotation: 40, minRotation: 0, autoSkip: true, font: { size: 10 } },
+        },
+        y: {
+          beginAtZero: true,
+          ticks: {
+            font: { size: 10 },
+            callback: (value) => {
+              const n = typeof value === 'number' ? value : Number(value);
+              if (!Number.isFinite(n)) return String(value);
+              if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+              if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}k`;
+              return `$${n}`;
+            },
+          },
+        },
+      },
+    };
+  });
+
+  abonosPorCliente = computed(() => this.data.getAbonosPorCliente());
+  hasAbonosClienteData = computed(() => this.abonosPorCliente().length > 0);
+  private readonly abonosChartLimit = 8;
+  abonosChartRows = computed(() => this.abonosPorCliente().slice(0, this.abonosChartLimit));
+  abonosChartTruncado = computed(() => this.abonosPorCliente().length > this.abonosChartLimit);
+
+  barAbonosClienteData = computed((): ChartConfiguration<'bar'>['data'] => {
+    const rows = this.abonosChartRows();
+    return {
+      labels: rows.map((r) => this.truncateLabel(r.nombre)),
+      datasets: [
+        {
+          data: rows.map((r) => r.abono),
+          label: 'Abono',
+          backgroundColor: '#22c55e',
+          maxBarThickness: 28,
+        },
+      ],
+    };
+  });
+
+  barAbonosClienteOptions = computed((): ChartConfiguration<'bar'>['options'] => {
+    const rows = this.abonosChartRows();
+    return {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            afterBody: (items) => {
+              const idx = items[0]?.dataIndex ?? -1;
+              const row = rows[idx];
+              if (!row) return [];
+              return [`${this.data.formatPorcentaje(row.porcentaje_del_total)} del abono general`];
+            },
+            label: (item) => {
+              const v = typeof item.raw === 'number' ? item.raw : Number(item.raw);
+              return `Abono: ${this.data.formatCurrency(Number.isFinite(v) ? v : 0)}`;
             },
           },
         },

@@ -6,6 +6,11 @@ import {
   type HonorariosResultado,
 } from '../honorarios';
 import { etiquetaCortaParaDiasMora, etiquetaParaDiasMora } from '../mora-etapas';
+import {
+  clasificarProcesoCuenta,
+  variantTipoProcesoCuenta,
+  type ClasificacionProcesoCuenta,
+} from '../proceso-tipo';
 import { buildMoraPorCliente, type MoraPorClienteRow } from '../mora-por-cliente';
 import { ETAPA_PROCESO_LABELS, etiquetaEtapaProceso } from '../proceso-etapas';
 import { labelEstadoProcesoLegal, variantEstadoProcesoLegal } from '../proceso-estado';
@@ -110,6 +115,13 @@ export type UpdateGestionPayload = {
   descripcion: string;
 };
 
+export type AbonoPorCliente = {
+  cliente_id: string;
+  nombre: string;
+  abono: number;
+  porcentaje_del_total: number;
+};
+
 export type PaymentReminderEmailAttachmentPayload = {
   filename: string;
   content_base64: string;
@@ -128,8 +140,10 @@ export class DataService {
     Record<string, PaymentReminderEmailRecord[]>
   >({});
   private readonly estadoCuentaFilesByCuentaSignal = signal<Record<string, EstadoCuentaFile[]>>({});
+  private readonly abonosPorClienteSignal = signal<AbonoPorCliente[]>([]);
   private readonly metricsDashboardSignal = signal({
     total_cartera: 0,
+    total_recogido: 0,
     clientes_activos: 0,
     cuentas_activas: 0,
     procesos_legales_activos: 0,
@@ -150,7 +164,7 @@ export class DataService {
     vencido: 'Vencido',
   };
   readonly tipoProcesoLegalLabels: Record<string, string> = {
-    juridica: 'JURÍDICO',
+    juridica: 'RADICADO',
     extrajudicial: 'PRE-JURÍDICO',
     acuerdo_de_pago: 'ACUERDO DE PAGO',
   };
@@ -173,6 +187,18 @@ export class DataService {
 
   formatEtapaProceso(etapa: string | null | undefined): string {
     return etiquetaEtapaProceso(etapa);
+  }
+
+  /**
+   * Tipo de cobro de la propiedad: PRE-JURÍDICO si no tiene radicado vinculado;
+   * si no, RADICADO o ACUERDO DE PAGO según el proceso.
+   */
+  getClasificacionProcesoCuenta(cuentaId: string): ClasificacionProcesoCuenta {
+    return clasificarProcesoCuenta(cuentaId, this.procesosLegalesSignal());
+  }
+
+  variantClasificacionProcesoCuenta(cuentaId: string): string {
+    return variantTipoProcesoCuenta(this.getClasificacionProcesoCuenta(cuentaId).codigo);
   }
   readonly estadoGestionLabels: Record<string, string> = {
     recibido: 'RECIBIDO',
@@ -390,13 +416,13 @@ export class DataService {
   }
 
   /** Etiqueta larga de etapa de cobranza (pre-jurídico / jurídico por tramos). */
-  formatEtapaCobranza(dias: number | null | undefined): string {
-    return etiquetaParaDiasMora(dias);
+  formatEtapaCobranza(dias: number | null | undefined, deuda?: number | null): string {
+    return etiquetaParaDiasMora(dias, deuda);
   }
 
   /** Etiqueta corta para tablas y listados. */
-  formatEtapaCobranzaCorta(dias: number | null | undefined): string {
-    return etiquetaCortaParaDiasMora(dias);
+  formatEtapaCobranzaCorta(dias: number | null | undefined, deuda?: number | null): string {
+    return etiquetaCortaParaDiasMora(dias, deuda);
   }
 
   /**
@@ -408,10 +434,11 @@ export class DataService {
     fecha_fin_cobro: string | null;
     fecha_alta?: string | null;
     identificador?: string;
+    deuda?: number | null;
   }): string {
     return [
       `Días en mora: ${this.formatDiasMora(r.edad_mora_dias)}`,
-      this.formatEtapaCobranza(r.edad_mora_dias),
+      this.formatEtapaCobranza(r.edad_mora_dias, r.deuda),
       `Alta en app: ${this.formatFechaCorta(r.fecha_alta)}`,
       `Inicio cobro: ${this.formatFechaCorta(r.fecha_inicio_cobro)}`,
       `Fin cobro: ${this.formatFechaCorta(r.fecha_fin_cobro)}`,
@@ -481,9 +508,10 @@ export class DataService {
   /** Una sola línea para PDF/Excel: días y etapa corta. */
   formatEdadMoraCompacta(r: {
     edad_mora_dias: number | null;
+    deuda?: number | null;
   }): string {
     const d = this.formatDiasMora(r.edad_mora_dias);
-    const e = this.formatEtapaCobranzaCorta(r.edad_mora_dias);
+    const e = this.formatEtapaCobranzaCorta(r.edad_mora_dias, r.deuda);
     if (d === '—' && e === '—') return '—';
     return `${d} · ${e}`;
   }
@@ -504,6 +532,7 @@ export class DataService {
     fecha_inicio_cobro: string | null;
     fecha_fin_cobro: string | null;
     fecha_alta: string | null;
+    deuda: number;
   } {
     const historial = this.getHistorialByCuenta(p.id);
     const fechaAlta = this.fechaDiaDesdeIso(p.created_at);
@@ -512,17 +541,15 @@ export class DataService {
     const fechaInicioCobro = fechaInicioExplicit || fechaAlta;
     const fechaFinCobro =
       p.fecha_fin_cobro?.trim() || this.fechaFinCobroDesdeHistorial(historial);
+    const deuda = this.getDeudaActualParaCuenta(p);
+    let edad = this.resolveEdadMoraDias(p, historial, fechaInicioExplicit, fechaFinCobro);
+    if (deuda <= 0 && historial.length > 0 && edad != null) edad = 0;
     return {
-      // Solo derivar días desde inicio explícito de cobro/mora (no desde el alta sola).
-      edad_mora_dias: this.resolveEdadMoraDias(
-        p,
-        historial,
-        fechaInicioExplicit,
-        fechaFinCobro,
-      ),
+      edad_mora_dias: edad,
       fecha_inicio_cobro: fechaInicioCobro,
       fecha_fin_cobro: fechaFinCobro,
       fecha_alta: fechaAlta,
+      deuda,
     };
   }
 
@@ -1010,6 +1037,20 @@ export class DataService {
     return this.metricsDashboardSignal().total_cartera;
   }
 
+  /** Suma de pagos registrados en toda la cartera (valor pagado, sin anulados). */
+  getTotalRecogido(): number {
+    return this.metricsDashboardSignal().total_recogido;
+  }
+
+  /** Abono general repartido por cliente, de mayor a menor. */
+  getAbonosPorCliente(): AbonoPorCliente[] {
+    const total = this.getTotalRecogido();
+    return this.abonosPorClienteSignal().map((row) => ({
+      ...row,
+      porcentaje_del_total: total > 0 ? Math.round((row.abono / total) * 1000) / 10 : 0,
+    }));
+  }
+
   /**
    * Honorarios de una cuenta: misma regla que detalle de cliente / recordatorio
    * (override manual, % por radicado, o fallback por edad en mora).
@@ -1145,6 +1186,7 @@ export class DataService {
     await Promise.all([
       this.loadMetricsDashboard(),
       this.loadDistribucionEstados(),
+      this.loadAbonosPorCliente(),
       this.loadClientes(),
       this.loadCuentas(),
     ]);
@@ -1152,6 +1194,21 @@ export class DataService {
       this.loadProcesosLegalesForLoadedClientes(),
       this.loadHistorialesMissingEdadMora(this.cuentasSignal()),
     ]);
+  }
+
+  async loadAbonosPorCliente(): Promise<void> {
+    const items = await this.http.getItems<AbonoPorCliente>('/metrics/abonos-por-cliente');
+    this.abonosPorClienteSignal.set(
+      items
+        .map((row) => ({
+          cliente_id: row.cliente_id,
+          nombre: row.nombre?.trim() || 'Sin cliente',
+          abono: Number(row.abono) || 0,
+          porcentaje_del_total: 0,
+        }))
+        .filter((row) => row.abono > 0)
+        .sort((a, b) => b.abono - a.abono || a.nombre.localeCompare(b.nombre, 'es')),
+    );
   }
 
   async loadClientes(search?: string): Promise<Cliente[]> {
@@ -1494,12 +1551,14 @@ export class DataService {
   async loadMetricsDashboard(): Promise<void> {
     const metrics = await this.http.get<{
       total_cartera: number;
+      total_recogido?: number;
       clientes_activos: number;
       cuentas_activas?: number;
       procesos_legales_activos?: number;
     }>('/metrics/dashboard');
     this.metricsDashboardSignal.set({
       total_cartera: metrics.total_cartera ?? 0,
+      total_recogido: metrics.total_recogido ?? 0,
       clientes_activos: metrics.clientes_activos ?? 0,
       cuentas_activas: metrics.cuentas_activas ?? 0,
       procesos_legales_activos: metrics.procesos_legales_activos ?? 0,

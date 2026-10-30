@@ -132,8 +132,8 @@ type DashboardRow = {
               class="w-full sm:w-[160px] rounded-full border border-input bg-background px-4 py-2"
             >
               <option value="todos">Todos los tipos</option>
-              <option value="juridica">JURÍDICO</option>
-              <option value="extrajudicial">PRE-JURÍDICO</option>
+              <option value="juridica">RADICADO</option>
+              <option value="pre_juridico">PRE-JURÍDICO</option>
               <option value="acuerdo_de_pago">ACUERDO DE PAGO</option>
             </select>
           </div>
@@ -264,7 +264,7 @@ export class DashboardPage {
   filtered = computed(() => {
     const s = this.search().toLowerCase();
     const est = this.filterEstado();
-    const tip = this.filterTipo() as TipoProcesoLegal | 'todos';
+    const tip = this.filterTipo();
     return this.rows().filter((row) => {
       const matchSearch =
         !s ||
@@ -278,7 +278,12 @@ export class DashboardPage {
         est === 'todos' ||
         (row.procesos.length > 0 &&
           row.procesos.some((p) => matchesEstadoProcesoLegalFilter(p.estado, est)));
-      const matchTipo = tip === 'todos' || row.procesos.some((p) => p.tipo === tip);
+      const matchTipo =
+        tip === 'todos' ||
+        (tip === 'pre_juridico'
+          ? row.propiedades.some((p) => !row.procesos.some((pr) => pr.cuenta_id === p.id)) ||
+            row.procesos.some((p) => p.tipo === 'extrajudicial')
+          : row.procesos.some((p) => p.tipo === (tip as TipoProcesoLegal)));
       return matchSearch && matchEstado && matchTipo;
     });
   });

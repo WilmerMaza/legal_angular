@@ -137,10 +137,13 @@ import { todayBogotaYmd } from '../../core/utils/dias-habiles-co';
               rows="2"
               maxlength="500"
               [value]="estado()"
-              (input)="estado.set($any($event.target).value)"
+              (input)="onEstado($any($event.target).value)"
               placeholder="Ej: Ya respondió / Pendiente respuesta de la entidad"
               class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             ></textarea>
+            @if (pqr()) {
+              <p class="text-xs text-muted-foreground mt-1">Al cambiar el estado, el vencimiento vuelve a contar 15 días hábiles desde hoy y los avisos empiezan de nuevo.</p>
+            }
           </div>
 
           <label class="flex items-start gap-3 rounded-xl border border-border px-4 py-3 cursor-pointer hover:bg-muted/40">
@@ -202,6 +205,8 @@ export class PqrDialog implements OnInit {
   vencimiento = signal('');
   estado = signal('');
   cerrada = signal(false);
+  private estadoInicial = '';
+  private vencimientoInicial = '';
   readonly vencimientoAuto = computed(() => calcularVencimientoPqr(this.fechaRadicacion()));
 
   /** Iniciales heredadas del Excel cuando la PQR aún no tiene un usuario asignado. */
@@ -227,7 +232,9 @@ export class PqrDialog implements OnInit {
     this.fechaRadicacion.set(p.fecha_radicacion);
     this.radicado.set(p.radicado ?? '');
     this.vencimiento.set(p.vencimiento ?? '');
+    this.vencimientoInicial = p.vencimiento ?? '';
     this.estado.set(p.estado ?? '');
+    this.estadoInicial = p.estado ?? '';
     this.cerrada.set(p.cerrada);
   }
 
@@ -244,6 +251,16 @@ export class PqrDialog implements OnInit {
   onFechaRadicacion(value: string): void {
     this.fechaRadicacion.set(value);
     this.vencimiento.set(this.vencimientoAuto());
+  }
+
+  onEstado(value: string): void {
+    this.estado.set(value);
+    if (!this.pqr() || this.cerrada()) return;
+    if (value.trim() === this.estadoInicial.trim()) {
+      this.vencimiento.set(this.vencimientoInicial);
+      return;
+    }
+    this.vencimiento.set(calcularVencimientoPqr(todayBogotaYmd()));
   }
 
   onSubmit(event: Event): void {

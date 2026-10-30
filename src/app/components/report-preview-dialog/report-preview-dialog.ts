@@ -113,15 +113,14 @@ import { renderChartToPng } from '../../core/report-export/chart-to-png';
             <p><strong class="text-muted-foreground">Edad en mora:</strong> {{ data.formatDiasMora(resumenCobroUnidad().edad_mora_dias) }}</p>
             <p class="text-foreground">
               <strong class="text-muted-foreground">Etapa de cobranza:</strong>
-              {{ data.formatEtapaCobranza(resumenCobroUnidad().edad_mora_dias) }}
+              {{ data.formatEtapaCobranza(resumenCobroUnidad().edad_mora_dias, resumenCobroUnidad().deuda) }}
             </p>
             <p><strong class="text-muted-foreground">Inicio del cobro:</strong> {{ data.formatFechaCorta(resumenCobroUnidad().fecha_inicio_cobro) }}</p>
             <p><strong class="text-muted-foreground">Fin del cobro:</strong> {{ data.formatFechaCorta(resumenCobroUnidad().fecha_fin_cobro) }}</p>
           </div>
 
-          <!-- Detalle de pagos (igual que en el informe) -->
           <div>
-            <h3 class="text-sm font-semibold text-foreground mb-2">Detalle de pagos</h3>
+            <h3 class="text-sm font-semibold text-foreground mb-2">Historial de pagos</h3>
             <div class="overflow-x-auto rounded-xl border border-border">
               <table class="w-full text-sm">
                 <thead>
@@ -136,16 +135,24 @@ import { renderChartToPng } from '../../core/report-export/chart-to-png';
                   </tr>
                 </thead>
                 <tbody>
-                  @for (h of historial(); track h.id) {
-                    <tr class="border-b border-border/50">
-                      <td class="px-3 py-2 font-mono">{{ h.periodo }}</td>
-                      <td class="px-3 py-2">{{ data.conceptoLabels[h.concepto] }}</td>
-                      <td class="px-3 py-2 text-right tabular-nums">{{ data.formatCurrency(h.valor_cobrado) }}</td>
-                      <td class="px-3 py-2 text-right tabular-nums">{{ data.formatCurrency(h.valor_pagado) }}</td>
-                      <td class="px-3 py-2">{{ data.estadoPagoLabels[h.estado_pago] }}</td>
-                      <td class="px-3 py-2 text-muted-foreground">{{ data.formatFechaPago(h) }}</td>
-                      <td class="px-3 py-2 text-right tabular-nums">{{ data.formatDeuda(deudaHistorial(h)) }}</td>
+                  @if (historial().length === 0) {
+                    <tr>
+                      <td colspan="7" class="px-3 py-4 text-sm text-muted-foreground">
+                        No hay historial de pagos en esta propiedad.
+                      </td>
                     </tr>
+                  } @else {
+                    @for (h of historial(); track h.id) {
+                      <tr class="border-b border-border/50">
+                        <td class="px-3 py-2 font-mono">{{ h.periodo }}</td>
+                        <td class="px-3 py-2">{{ data.conceptoLabels[h.concepto] }}</td>
+                        <td class="px-3 py-2 text-right tabular-nums">{{ data.formatCurrency(h.valor_cobrado) }}</td>
+                        <td class="px-3 py-2 text-right tabular-nums">{{ data.formatCurrency(h.valor_pagado) }}</td>
+                        <td class="px-3 py-2">{{ data.estadoPagoLabels[h.estado_pago] }}</td>
+                        <td class="px-3 py-2 text-muted-foreground">{{ data.formatFechaPago(h) }}</td>
+                        <td class="px-3 py-2 text-right tabular-nums">{{ data.formatDeuda(deudaHistorial(h)) }}</td>
+                      </tr>
+                    }
                   }
                 </tbody>
               </table>
@@ -399,7 +406,7 @@ export class ReportPreviewDialog {
     doc.text('Cobro de esta unidad', 14, 78);
     doc.text(`Edad en mora: ${this.data.formatDiasMora(rc.edad_mora_dias)}`, 14, 84);
     const etapaLines = doc.splitTextToSize(
-      `Etapa de cobranza: ${this.data.formatEtapaCobranza(rc.edad_mora_dias)}`,
+      `Etapa de cobranza: ${this.data.formatEtapaCobranza(rc.edad_mora_dias, rc.deuda)}`,
       180
     );
     doc.text(etapaLines, 14, 90);
@@ -421,6 +428,14 @@ export class ReportPreviewDialog {
       startY += lines.length * 5 + 8;
     }
     const historial = this.historial();
+    doc.setFontSize(11);
+    doc.text('Historial de pagos', 14, startY);
+    startY += 6;
+    if (historial.length === 0) {
+      doc.setFontSize(10);
+      doc.text('No hay historial de pagos en esta propiedad.', 14, startY);
+      startY += 8;
+    }
     autoTable(doc, {
       startY,
       head: [
@@ -434,15 +449,18 @@ export class ReportPreviewDialog {
           'Deuda a la fecha',
         ],
       ],
-      body: historial.map((h) => [
-        h.periodo,
-        this.data.conceptoLabels[h.concepto],
-        this.data.formatCurrency(h.valor_cobrado),
-        this.data.formatCurrency(h.valor_pagado),
-        this.data.estadoPagoLabels[h.estado_pago],
-        this.data.formatFechaPago(h),
-        this.data.formatDeuda(this.data.getDeudaParaHistorialPago(p, h)),
-      ]),
+      body:
+        historial.length > 0
+          ? historial.map((h) => [
+              h.periodo,
+              this.data.conceptoLabels[h.concepto],
+              this.data.formatCurrency(h.valor_cobrado),
+              this.data.formatCurrency(h.valor_pagado),
+              this.data.estadoPagoLabels[h.estado_pago],
+              this.data.formatFechaPago(h),
+              this.data.formatDeuda(this.data.getDeudaParaHistorialPago(p, h)),
+            ])
+          : [['—', 'Sin pagos', '—', '—', '—', '—', '—']],
       styles: { fontSize: 8 },
       headStyles: { fillColor: [107, 60, 200] },
     });
@@ -488,7 +506,7 @@ export class ReportPreviewDialog {
         'Edad en mora',
         this.data.formatDiasMora(this.resumenCobroUnidad().edad_mora_dias),
       ],
-      ['Etapa de cobranza', this.data.formatEtapaCobranza(this.resumenCobroUnidad().edad_mora_dias)],
+      ['Etapa de cobranza', this.data.formatEtapaCobranza(this.resumenCobroUnidad().edad_mora_dias, this.resumenCobroUnidad().deuda)],
       [
         'Inicio del cobro',
         this.data.formatFechaCorta(this.resumenCobroUnidad().fecha_inicio_cobro),
@@ -496,6 +514,7 @@ export class ReportPreviewDialog {
       ['Fin del cobro', this.data.formatFechaCorta(this.resumenCobroUnidad().fecha_fin_cobro)],
       ...(notas ? [[], ['Notas', notas], []] : []),
       [],
+      ['Historial de pagos'],
       [
         'Periodo',
         'Concepto',
@@ -505,15 +524,17 @@ export class ReportPreviewDialog {
         'Fecha Pago',
         'Deuda a la fecha',
       ],
-      ...historial.map((h) => [
-        h.periodo,
-        this.data.conceptoLabels[h.concepto],
-        h.valor_cobrado,
-        h.valor_pagado,
-        this.data.estadoPagoLabels[h.estado_pago],
-        this.data.formatFechaPago(h),
-        this.data.getDeudaParaHistorialPago(p, h),
-      ]),
+      ...(historial.length > 0
+        ? historial.map((h) => [
+            h.periodo,
+            this.data.conceptoLabels[h.concepto],
+            h.valor_cobrado,
+            h.valor_pagado,
+            this.data.estadoPagoLabels[h.estado_pago],
+            this.data.formatFechaPago(h),
+            this.data.getDeudaParaHistorialPago(p, h),
+          ])
+        : [['Sin historial de pagos', '', '', '', '', '', '']]),
       [],
       ['Trazabilidad de cobro'],
       [...GESTION_EXPORT_HEADERS],
@@ -558,33 +579,38 @@ export class ReportPreviewDialog {
       buildSubheading('Cobro de esta unidad'),
       ...buildKeyValueLines([
         ['Edad en mora', this.data.formatDiasMora(rc.edad_mora_dias)],
-        ['Etapa de cobranza', this.data.formatEtapaCobranza(rc.edad_mora_dias)],
+        ['Etapa de cobranza', this.data.formatEtapaCobranza(rc.edad_mora_dias, rc.deuda)],
         ['Inicio del cobro', this.data.formatFechaCorta(rc.fecha_inicio_cobro)],
         ['Fin del cobro', this.data.formatFechaCorta(rc.fecha_fin_cobro)],
       ]),
       ...(notas
         ? [buildSubheading('Notas'), buildParagraph(notas), buildSpacer()]
         : [buildSpacer()]),
-      buildTable(
-        [
-          'Periodo',
-          'Concepto',
-          'Valor Cobrado',
-          'Valor Pagado',
-          'Estado',
-          'Fecha Pago',
-          'Deuda a la fecha',
-        ],
-        historial.map((h) => [
-          h.periodo,
-          this.data.conceptoLabels[h.concepto],
-          this.data.formatCurrency(h.valor_cobrado),
-          this.data.formatCurrency(h.valor_pagado),
-          this.data.estadoPagoLabels[h.estado_pago],
-          this.data.formatFechaPago(h),
-          this.data.formatDeuda(this.data.getDeudaParaHistorialPago(p, h)),
-        ])
-      ),
+      buildSubheading('Historial de pagos'),
+      ...(historial.length > 0
+        ? [
+            buildTable(
+              [
+                'Periodo',
+                'Concepto',
+                'Valor Cobrado',
+                'Valor Pagado',
+                'Estado',
+                'Fecha Pago',
+                'Deuda a la fecha',
+              ],
+              historial.map((h) => [
+                h.periodo,
+                this.data.conceptoLabels[h.concepto],
+                this.data.formatCurrency(h.valor_cobrado),
+                this.data.formatCurrency(h.valor_pagado),
+                this.data.estadoPagoLabels[h.estado_pago],
+                this.data.formatFechaPago(h),
+                this.data.formatDeuda(this.data.getDeudaParaHistorialPago(p, h)),
+              ]),
+            ),
+          ]
+        : [buildParagraph('No hay historial de pagos en esta propiedad.')]),
       buildSpacer(),
       buildSubheading('Trazabilidad de cobro'),
       ...(gestionRows.length

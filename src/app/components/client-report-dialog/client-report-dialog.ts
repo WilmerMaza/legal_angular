@@ -34,7 +34,6 @@ import {
   buildClienteCobradoPagadoChartData,
   buildClienteDeudaPorCuentaChartData,
   buildClienteHonorariosPorCuentaChartData,
-  buildClienteRecaudoUltimosMesesChartData,
   buildClienteResumenFinancieroChartData,
   buildClienteUnidadesPorEdadMoraChartData,
   buildEdadMoraChartOptions,
@@ -42,9 +41,7 @@ import {
   PREVIEW_CHART_BAR_OPTIONS,
   PREVIEW_CHART_DEUDA_UNIDAD_OPTIONS,
   PREVIEW_CHART_DOUGHNUT_OPTIONS,
-  RECAUDO_MESES_OPTIONS,
   REPORT_CHART_PALETTE_OPTIONS,
-  type RecaudoMesesVentana,
   type ReportChartPalette,
   suggestedUnidadChartHeightPx,
   unidadesEjeYFromEdadMoraChartData,
@@ -211,38 +208,6 @@ import {
             </div>
           }
 
-          <div class="rounded-xl border border-border p-4">
-            <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
-              <h3 class="text-sm font-semibold text-foreground">Pagado por periodo</h3>
-              <div class="flex flex-wrap gap-2">
-                @for (opt of recaudoMesesOptions; track opt.meses) {
-                  <button
-                    type="button"
-                    (click)="recaudoMeses.set(opt.meses)"
-                    class="rounded-lg border px-2.5 py-1 text-xs font-medium transition-colors"
-                    [class.border-foreground]="recaudoMeses() === opt.meses"
-                    [class.bg-muted]="recaudoMeses() === opt.meses"
-                    [class.border-border]="recaudoMeses() !== opt.meses"
-                    [attr.aria-pressed]="recaudoMeses() === opt.meses"
-                  >
-                    {{ opt.label }}
-                  </button>
-                }
-              </div>
-            </div>
-            <p class="text-xs text-muted-foreground mb-3">
-              Total pagado mes a mes en los últimos {{ recaudoMeses() }} meses.
-            </p>
-            <div [style.height.px]="recaudoChartHeight()">
-              <canvas
-                baseChart
-                [data]="barRecaudoData()"
-                [options]="barCobradoPagadoOptions"
-                type="bar"
-              ></canvas>
-            </div>
-          </div>
-
           <div>
             <h3 class="text-sm font-semibold text-foreground mb-2">Por cuenta (unidad)</h3>
             <p class="text-xs text-muted-foreground mb-2">
@@ -282,7 +247,7 @@ import {
                           {{ data.formatDiasMora(row.edad_mora_dias) }}
                         </div>
                         <div class="text-xs text-muted-foreground mt-1 leading-snug">
-                          {{ data.formatEtapaCobranzaCorta(row.edad_mora_dias) }}
+                          {{ data.formatEtapaCobranzaCorta(row.edad_mora_dias, row.deuda) }}
                         </div>
                       </td>
                       <td class="px-3 py-2 text-right tabular-nums font-semibold align-top whitespace-nowrap">
@@ -303,7 +268,7 @@ import {
           </div>
 
           <div>
-            <h3 class="text-sm font-semibold text-foreground mb-2">Detalle de transacciones</h3>
+            <h3 class="text-sm font-semibold text-foreground mb-2">Historial de pagos</h3>
             <div class="overflow-x-auto rounded-xl border border-border">
               <table class="w-full text-sm">
                 <thead>
@@ -311,21 +276,33 @@ import {
                     <th class="text-left px-3 py-2 font-semibold text-muted-foreground">Cuenta</th>
                     <th class="text-left px-3 py-2 font-semibold text-muted-foreground">Periodo</th>
                     <th class="text-left px-3 py-2 font-semibold text-muted-foreground">Concepto</th>
-                    <th class="text-right px-3 py-2 font-semibold text-muted-foreground">Cobrado</th>
-                    <th class="text-right px-3 py-2 font-semibold text-muted-foreground">Pagado</th>
+                    <th class="text-right px-3 py-2 font-semibold text-muted-foreground">Valor cobrado</th>
+                    <th class="text-right px-3 py-2 font-semibold text-muted-foreground">Valor pagado</th>
                     <th class="text-left px-3 py-2 font-semibold text-muted-foreground">Estado</th>
+                    <th class="text-left px-3 py-2 font-semibold text-muted-foreground">Fecha pago</th>
+                    <th class="text-right px-3 py-2 font-semibold text-muted-foreground">Deuda a la fecha</th>
                   </tr>
                 </thead>
                 <tbody>
-                  @for (h of allData(); track h.id) {
-                    <tr class="border-b border-border/50">
-                      <td class="px-3 py-2">{{ h.cuenta }}</td>
-                      <td class="px-3 py-2 font-mono">{{ h.periodo }}</td>
-                      <td class="px-3 py-2">{{ data.conceptoLabels[h.concepto] }}</td>
-                      <td class="px-3 py-2 text-right tabular-nums">{{ data.formatCurrency(h.valor_cobrado) }}</td>
-                      <td class="px-3 py-2 text-right tabular-nums">{{ data.formatCurrency(h.valor_pagado) }}</td>
-                      <td class="px-3 py-2">{{ data.estadoPagoLabels[h.estado_pago] }}</td>
+                  @if (allData().length === 0) {
+                    <tr>
+                      <td colspan="8" class="px-3 py-4 text-sm text-muted-foreground">
+                        No hay historial de pagos en las propiedades de este cliente.
+                      </td>
                     </tr>
+                  } @else {
+                    @for (h of allData(); track h.id) {
+                      <tr class="border-b border-border/50">
+                        <td class="px-3 py-2">{{ h.cuenta }}</td>
+                        <td class="px-3 py-2 font-mono">{{ h.periodo }}</td>
+                        <td class="px-3 py-2">{{ data.conceptoLabels[h.concepto] }}</td>
+                        <td class="px-3 py-2 text-right tabular-nums">{{ data.formatCurrency(h.valor_cobrado) }}</td>
+                        <td class="px-3 py-2 text-right tabular-nums">{{ data.formatCurrency(h.valor_pagado) }}</td>
+                        <td class="px-3 py-2">{{ data.estadoPagoLabels[h.estado_pago] }}</td>
+                        <td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{{ data.formatFechaPago(h) }}</td>
+                        <td class="px-3 py-2 text-right tabular-nums">{{ data.formatDeuda(data.getDeudaParaHistorialPago(h.cuentaRef, h)) }}</td>
+                      </tr>
+                    }
                   }
                 </tbody>
               </table>
@@ -470,9 +447,7 @@ export class ClientReportDialog {
   titulo = signal('');
   notasExtra = signal('');
   chartPalette = signal<ReportChartPalette>('morado');
-  recaudoMeses = signal<RecaudoMesesVentana>(3);
   readonly paletteOptions = REPORT_CHART_PALETTE_OPTIONS;
-  readonly recaudoMesesOptions = RECAUDO_MESES_OPTIONS;
 
   fecha = new Date().toLocaleDateString('es-CO', {
     day: 'numeric',
@@ -484,7 +459,7 @@ export class ClientReportDialog {
     const props = this.cuentas();
     return props.flatMap((p) => {
       const hist = this.data.getHistorialByCuenta(p.id);
-      return hist.map((h) => ({ ...h, cuenta: p.identificador }));
+      return hist.map((h) => ({ ...h, cuenta: p.identificador, cuentaRef: p }));
     });
   });
 
@@ -567,20 +542,8 @@ export class ClientReportDialog {
 
   readonly barCobradoPagadoOptions = PREVIEW_CHART_BAR_OPTIONS;
 
-  readonly barRecaudoData = computed((): ChartConfiguration<'bar'>['data'] =>
-    buildClienteRecaudoUltimosMesesChartData(
-      buildHistorialConCuenta(this.data, this.cuentas()),
-      this.recaudoMeses(),
-      { palette: this.chartPalette() },
-    ),
-  );
-
   readonly unidadChartHeight = computed(() =>
     suggestedUnidadChartHeightPx(this.cuentas().length),
-  );
-
-  readonly recaudoChartHeight = computed(() =>
-    suggestedUnidadChartHeightPx(this.recaudoMeses()),
   );
 
   /** Solo inicializa título/notas al abrir el informe, no en cada refresco de datos del cliente. */
@@ -599,7 +562,6 @@ export class ClientReportDialog {
       if (c.nombre) this.titulo.set(`Informe General – ${c.nombre}`);
       this.notasExtra.set('');
       this.chartPalette.set('morado');
-      this.recaudoMeses.set(3);
       void this.data.loadGestionesForCuentas(this.cuentas());
       this.tutelas.set([]);
       void this.tutelasService
@@ -620,7 +582,6 @@ export class ClientReportDialog {
       notas: this.notasExtra(),
       fecha: this.fecha,
       chartPalette: this.chartPalette(),
-      recaudoMeses: this.recaudoMeses(),
       tutelas: this.tutelas(),
     });
   }
@@ -647,17 +608,20 @@ export class ClientReportDialog {
       ['Unidad', 'Deudor', 'Documento', 'Correo', 'Edad en mora', 'Deuda a la fecha', 'Honorarios'],
       ...resumenRows,
       [],
-      ['Detalle de transacciones'],
-      [],
-      ['Cuenta', 'Periodo', 'Concepto', 'Cobrado', 'Pagado', 'Estado'],
-      ...allData.map((h) => [
-        h.cuenta,
-        h.periodo,
-        this.data.conceptoLabels[h.concepto],
-        h.valor_cobrado,
-        h.valor_pagado,
-        this.data.estadoPagoLabels[h.estado_pago],
-      ]),
+      ['Historial de pagos'],
+      ['Cuenta', 'Periodo', 'Concepto', 'Valor cobrado', 'Valor pagado', 'Estado', 'Fecha pago', 'Deuda a la fecha'],
+      ...(allData.length > 0
+        ? allData.map((h) => [
+            h.cuenta,
+            h.periodo,
+            this.data.conceptoLabels[h.concepto],
+            h.valor_cobrado,
+            h.valor_pagado,
+            this.data.estadoPagoLabels[h.estado_pago],
+            this.data.formatFechaPago(h),
+            this.data.getDeudaParaHistorialPago(h.cuentaRef, h),
+          ])
+        : [['Sin historial de pagos', '', '', '', '', '', '', '']]),
       [],
       ['Trazabilidad de cobro por unidad'],
       [...GESTION_EXPORT_HEADERS_CON_UNIDAD],
@@ -722,18 +686,24 @@ export class ClientReportDialog {
         resumen.map((row) => this.resumenCuentaExportRow(row)),
       ),
       buildSpacer(),
-      buildSubheading('Detalle de transacciones'),
-      buildTable(
-        ['Cuenta', 'Periodo', 'Concepto', 'Cobrado', 'Pagado', 'Estado'],
-        allData.map((h) => [
-          h.cuenta,
-          h.periodo,
-          this.data.conceptoLabels[h.concepto],
-          this.data.formatCurrency(h.valor_cobrado),
-          this.data.formatCurrency(h.valor_pagado),
-          this.data.estadoPagoLabels[h.estado_pago],
-        ])
-      ),
+      buildSubheading('Historial de pagos'),
+      ...(allData.length > 0
+        ? [
+            buildTable(
+              ['Cuenta', 'Periodo', 'Concepto', 'Valor cobrado', 'Valor pagado', 'Estado', 'Fecha pago', 'Deuda a la fecha'],
+              allData.map((h) => [
+                h.cuenta,
+                h.periodo,
+                this.data.conceptoLabels[h.concepto],
+                this.data.formatCurrency(h.valor_cobrado),
+                this.data.formatCurrency(h.valor_pagado),
+                this.data.estadoPagoLabels[h.estado_pago],
+                this.data.formatFechaPago(h),
+                this.data.formatDeuda(this.data.getDeudaParaHistorialPago(h.cuentaRef, h)),
+              ]),
+            ),
+          ]
+        : [buildParagraph('No hay historial de pagos en las propiedades de este cliente.')]),
       buildSpacer(),
       buildSubheading('Trazabilidad de cobro por unidad'),
       ...(gestionRows.length

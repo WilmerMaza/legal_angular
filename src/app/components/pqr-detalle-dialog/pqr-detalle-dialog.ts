@@ -1,14 +1,20 @@
 import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
-import type { HistorialCambio } from '../../core/historial-cambios';
+import {
+  describirCambio,
+  formatFechaHoraHistorial,
+  tituloAccionHistorial,
+  type HistorialCambio,
+} from '../../core/historial-cambios';
 import { DataService } from '../../core/services/data.service';
 import { PqrsService, plazoPqr, type Pqr } from '../../core/services/pqrs.service';
 import { diasHabilesEntre, todayBogotaYmd } from '../../core/utils/dias-habiles-co';
 import { HistorialCambios } from '../../shared/historial-cambios/historial-cambios';
+import { InformeDialog, type CampoInforme, type SeccionInforme } from '../informe-dialog/informe-dialog';
 
 @Component({
   selector: 'app-pqr-detalle-dialog',
   standalone: true,
-  imports: [HistorialCambios],
+  imports: [HistorialCambios, InformeDialog],
   template: `
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="fixed inset-0 bg-black/50" (click)="openChange.emit(false)"></div>
@@ -101,6 +107,14 @@ import { HistorialCambios } from '../../shared/historial-cambios/historial-cambi
           </button>
           <button
             type="button"
+            (click)="generarInforme()"
+            class="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-primary text-primary px-4 py-2.5 text-sm font-medium hover:bg-primary/5"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>
+            Generar informe
+          </button>
+          <button
+            type="button"
             (click)="editar.emit(pqr())"
             class="w-full rounded-xl bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:opacity-90"
           >
@@ -108,6 +122,16 @@ import { HistorialCambios } from '../../shared/historial-cambios/historial-cambi
           </button>
         </div>
       </div>
+      @if (informeOpen()) {
+        <app-informe-dialog
+          [titulo]="tituloInforme()"
+          [detalle]="detalleInforme()"
+          [campos]="camposInforme()"
+          [secciones]="seccionesInforme()"
+          [nombreArchivo]="nombreArchivoInforme()"
+          (openChange)="informeOpen.set($event)"
+        />
+      }
     </div>
   `,
 })
@@ -122,6 +146,7 @@ export class PqrDetalleDialog implements OnInit {
   readonly historial = signal<HistorialCambio[]>([]);
   readonly historialLoading = signal(true);
   readonly historialError = signal<string | null>(null);
+  readonly informeOpen = signal(false);
 
   private readonly hoy = todayBogotaYmd();
 
@@ -134,6 +159,48 @@ export class PqrDetalleDialog implements OnInit {
       this.historialLoading.set(false);
     }
   }
+
+  generarInforme(): void {
+    this.informeOpen.set(true);
+  }
+
+  readonly tituloInforme = computed(() => `Informe de PQR · ${this.pqr().radicado || this.pqr().solicitante}`);
+
+  readonly nombreArchivoInforme = computed(() => {
+    const base = this.pqr().radicado || this.pqr().solicitante || 'pqr';
+    return `informe_pqr_${base}`;
+  });
+
+  readonly detalleInforme = computed(() => {
+    if (this.historialLoading()) return 'La trazabilidad todavía se está cargando.';
+    if (this.historialError()) return this.historialError() ?? '';
+    return `${this.pqr().solicitante} ante ${this.pqr().entidad}.`;
+  });
+
+  readonly camposInforme = computed((): CampoInforme[] => {
+    const p = this.pqr();
+    const plazo = this.plazoTexto();
+    const vencimiento = this.data.formatFechaCorta(p.vencimiento);
+    return [
+      { etiqueta: 'Solicitante', valor: p.solicitante },
+      { etiqueta: 'Entidad', valor: p.entidad },
+      { etiqueta: 'Radicado', valor: p.radicado || '—' },
+      { etiqueta: 'Gestión', valor: p.responsable_email || 'Sin asignar' },
+      { etiqueta: 'Asunto', valor: p.asunto },
+      { etiqueta: 'Radicación', valor: this.data.formatFechaCorta(p.fecha_radicacion) },
+      { etiqueta: 'Vencimiento', valor: plazo ? `${vencimiento} · ${plazo}` : vencimiento },
+      { etiqueta: 'Estado', valor: p.estado || '—' },
+      { etiqueta: 'Cerrada', valor: p.cerrada ? 'Sí, sin alertas' : 'No' },
+    ];
+  });
+
+  readonly seccionesInforme = computed((): SeccionInforme[] => [
+    {
+      titulo: 'Trazabilidad',
+      headers: ['Radicado', 'Fecha', 'Movimiento', 'Detalle'],
+      rows: filasTrazabilidadPqr(this.pqr(), this.historial()),
+    },
+  ]);
 
   readonly plazoClass = computed(() => {
     const p = plazoPqr(this.pqr(), this.hoy);
@@ -152,4 +219,22 @@ export class PqrDetalleDialog implements OnInit {
     if (restantes === 0) return 'Vence hoy';
     return restantes === 1 ? 'Falta 1 día hábil' : `Faltan ${restantes} días hábiles`;
   });
+}
+
+function filasTrazabilidadPqr(pqr: Pqr, historial: HistorialCambio[]): string[][] {
+  const radicado = pqr.radicado || 'Sin radicado';
+  const rows: string[][] = [];
+  const orden = [...historial].sort((a, b) => a.created_at.localeCompare(b.created_at));
+  if (!orden.some((item) => item.accion === 'creada')) {
+    rows.push([radicado, formatFechaHoraHistorial(pqr.created_at), tituloAccionHistorial('pqr', 'creada'), '—']);
+  }
+  for (const item of orden) {
+    rows.push([
+      radicado,
+      formatFechaHoraHistorial(item.created_at),
+      tituloAccionHistorial('pqr', item.accion),
+      item.cambios.map((cambio) => describirCambio('pqr', cambio)).join('\n') || '—',
+    ]);
+  }
+  return rows;
 }

@@ -10,6 +10,7 @@ import {
   type PlazoTutela,
 } from '../../core/services/tutelas.service';
 import { diasHabilesEntre, todayBogotaYmd } from '../../core/utils/dias-habiles-co';
+import { InformeDialog, type SeccionInforme } from '../../components/informe-dialog/informe-dialog';
 import { PqrDetalleDialog } from '../../components/pqr-detalle-dialog/pqr-detalle-dialog';
 import { PqrDialog } from '../../components/pqr-dialog/pqr-dialog';
 import { FILAS_ESQUELETO, FilaEsqueleto, type CeldaEsqueleto } from '../../shared/esqueleto/fila-esqueleto';
@@ -25,7 +26,7 @@ function compararMasRecientePrimero(a: Pqr, b: Pqr): number {
 @Component({
   selector: 'app-pqrs-page',
   standalone: true,
-  imports: [FilaEsqueleto, PqrDetalleDialog, PqrDialog, TextoTooltip],
+  imports: [FilaEsqueleto, InformeDialog, PqrDetalleDialog, PqrDialog, TextoTooltip],
   animations: [fadeInUp, fadeInUpStagger],
   template: `
     <div class="min-h-screen">
@@ -109,6 +110,14 @@ function compararMasRecientePrimero(a: Pqr, b: Pqr): number {
               }
             </div>
             <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                (click)="generarInforme()"
+                class="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>
+                Generar informe
+              </button>
               <button
                 type="button"
                 (click)="abrirNueva()"
@@ -226,6 +235,16 @@ function compararMasRecientePrimero(a: Pqr, b: Pqr): number {
         />
       }
 
+      @if (informeOpen()) {
+        <app-informe-dialog
+          titulo="Informe de PQR"
+          [detalle]="detalleInforme()"
+          [secciones]="seccionesInforme()"
+          nombreArchivo="informe_pqrs"
+          (openChange)="informeOpen.set($event)"
+        />
+      }
+
       @if (deleteTarget(); as target) {
         <div class="fixed inset-0 z-40 bg-black/50"></div>
         <section class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
@@ -283,6 +302,7 @@ export class PqrsPage implements OnInit {
   deleting = signal(false);
 
   dialogOpen = signal(false);
+  informeOpen = signal(false);
   editing = signal<Pqr | null>(null);
   deleteTarget = signal<Pqr | null>(null);
   detalleTarget = signal<Pqr | null>(null);
@@ -359,6 +379,49 @@ export class PqrsPage implements OnInit {
     const restantes = diasHabilesEntre(this.hoy, p.vencimiento);
     if (restantes === 0) return 'Vence hoy';
     return restantes === 1 ? 'Falta 1 día hábil' : `Faltan ${restantes} días hábiles`;
+  }
+
+  generarInforme(): void {
+    this.informeOpen.set(true);
+  }
+
+  detalleInforme(): string {
+    const total = this.filtradas().length;
+    return `${total} PQR según los filtros de esta pantalla.`;
+  }
+
+  seccionesInforme(): SeccionInforme[] {
+    return [
+      {
+        titulo: 'Peticiones',
+        headers: [
+          'Radicado',
+          'Radicación',
+          'Gestión',
+          'Solicitante',
+          'Entidad',
+          'Asunto',
+          'Vencimiento',
+          'Estado',
+          'Cerrada',
+        ],
+        rows: this.filtradas().map((p) => {
+          const plazo = this.plazoTexto(p);
+          const vencimiento = this.data.formatFechaCorta(p.vencimiento);
+          return [
+            p.radicado || '—',
+            this.data.formatFechaCorta(p.fecha_radicacion),
+            p.responsable_email || 'Sin asignar',
+            p.solicitante,
+            p.entidad,
+            p.asunto,
+            plazo ? `${vencimiento} (${plazo})` : vencimiento,
+            p.estado || '—',
+            p.cerrada ? 'Sí' : 'No',
+          ];
+        }),
+      },
+    ];
   }
 
   abrirNueva(): void {

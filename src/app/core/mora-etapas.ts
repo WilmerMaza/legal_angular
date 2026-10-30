@@ -5,6 +5,7 @@
 export type EtapaCobranzaCodigo =
   | 'sin_dato'
   | 'al_dia'
+  | 'terminado'
   | 'persuasivo_1_30'
   | 'persuasivo_31_60'
   | 'probable_juridico_61_90'
@@ -13,6 +14,7 @@ export type EtapaCobranzaCodigo =
 const ETIQUETAS: Record<EtapaCobranzaCodigo, string> = {
   sin_dato: 'Sin dato de mora',
   al_dia: 'Al día (0 días de mora)',
+  terminado: 'Terminado',
   persuasivo_1_30:
     'Cobros persuasivos, etapa pre-jurídica (1–30 días): llamadas, mensajes, correos de cobro',
   persuasivo_31_60:
@@ -26,6 +28,7 @@ const ETIQUETAS: Record<EtapaCobranzaCodigo, string> = {
 const ETIQUETAS_CORTAS: Record<EtapaCobranzaCodigo, string> = {
   sin_dato: '—',
   al_dia: 'Al día',
+  terminado: 'Terminado',
   persuasivo_1_30: 'Pre-jurídico (1–30 d)',
   persuasivo_31_60: 'Pre-jurídico (31–60 d)',
   probable_juridico_61_90: 'Alerta jurídica (61–90 d)',
@@ -35,7 +38,20 @@ const ETIQUETAS_CORTAS: Record<EtapaCobranzaCodigo, string> = {
 /**
  * @param dias Edad en mora en días (típicamente `Cuenta.edad_mora_dias` o equivalente).
  */
-export function clasificarEtapaCobranza(dias: number | null | undefined): EtapaCobranzaCodigo {
+export function clasificarEtapaCobranza(
+  dias: number | null | undefined,
+  deuda?: number | null,
+): EtapaCobranzaCodigo {
+  if (
+    deuda != null &&
+    Number.isFinite(Number(deuda)) &&
+    Number(deuda) <= 0 &&
+    dias != null &&
+    Number.isFinite(Number(dias)) &&
+    Math.floor(Number(dias)) === 0
+  ) {
+    return 'terminado';
+  }
   if (dias == null || !Number.isFinite(Number(dias))) return 'sin_dato';
   const n = Math.max(0, Math.floor(Number(dias)));
   if (n === 0) return 'al_dia';
@@ -53,10 +69,13 @@ export function etiquetaEtapaCobranzaCorta(codigo: EtapaCobranzaCodigo): string 
   return ETIQUETAS_CORTAS[codigo];
 }
 
-export function etiquetaParaDiasMora(dias: number | null | undefined): string {
-  return etiquetaEtapaCobranza(clasificarEtapaCobranza(dias));
+export function etiquetaParaDiasMora(dias: number | null | undefined, deuda?: number | null): string {
+  return etiquetaEtapaCobranza(clasificarEtapaCobranza(dias, deuda));
 }
 
-export function etiquetaCortaParaDiasMora(dias: number | null | undefined): string {
-  return etiquetaEtapaCobranzaCorta(clasificarEtapaCobranza(dias));
+export function etiquetaCortaParaDiasMora(
+  dias: number | null | undefined,
+  deuda?: number | null,
+): string {
+  return etiquetaEtapaCobranzaCorta(clasificarEtapaCobranza(dias, deuda));
 }

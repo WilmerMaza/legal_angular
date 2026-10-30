@@ -100,49 +100,71 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
               {{ error() }}
             </div>
           }
-          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div class="lg:col-span-2 bg-card rounded-2xl shadow-card p-4 sm:p-6 border border-border/50 min-w-0">
-              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                <h2 class="font-display font-bold text-lg flex items-center gap-2">
+          <div class="space-y-4">
+            <div class="bg-card rounded-2xl shadow-card p-4 sm:p-5 border border-border/50 min-w-0">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h2 class="font-display font-bold text-lg flex items-center gap-2 shrink-0">
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-primary"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                   Información del Cliente
                 </h2>
-                <button
-                  type="button"
-                  (click)="openEditarCliente()"
-                  class="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted shrink-0"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                  Editar
-                </button>
+                <div class="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    (click)="clientReportOpen.set(true)"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+                    Informe general
+                  </button>
+                  <button
+                    type="button"
+                    (click)="openEditarCliente()"
+                    class="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                    Editar
+                  </button>
+                </div>
               </div>
-              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                <div class="flex items-center gap-2 text-muted-foreground min-w-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0 text-muted-foreground"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                  <span class="truncate">{{ cliente()!.email }}</span>
-                </div>
-                <div class="flex items-center gap-2 text-muted-foreground">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0 text-muted-foreground"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                  {{ cliente()!.telefono }}
-                </div>
-                <div class="col-span-2 flex items-start gap-2 text-muted-foreground">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0 mt-0.5 text-muted-foreground"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
-                  {{ cliente()!.direccion }}
-                </div>
-                @if (cliente()!.observaciones) {
-                  <div class="col-span-2 bg-secondary/50 rounded-xl p-3 text-muted-foreground text-sm">
-                    <span class="font-medium text-foreground">Observaciones:</span>
-                    {{ cliente()!.observaciones }}
-                  </div>
+              <div class="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+                @if (cliente()!.email) {
+                  <span class="inline-flex items-center gap-2 min-w-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                    <span class="truncate">{{ cliente()!.email }}</span>
+                  </span>
+                }
+                @if (cliente()!.telefono) {
+                  <span class="inline-flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    {{ cliente()!.telefono }}
+                  </span>
+                }
+                @if (cliente()!.direccion) {
+                  <span class="inline-flex items-center gap-2 min-w-0">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                    <span class="truncate">{{ cliente()!.direccion }}</span>
+                  </span>
                 }
               </div>
+              @if (cliente()!.observaciones) {
+                <p class="mt-3 rounded-xl bg-secondary/50 px-3 py-2 text-sm text-muted-foreground">
+                  <span class="font-medium text-foreground">Observaciones:</span>
+                  {{ cliente()!.observaciones }}
+                </p>
+              }
             </div>
-            <div class="flex flex-col gap-3">
+            <div [class]="'grid grid-cols-1 gap-4 ' + (totalHonorarios() > 0 ? 'sm:grid-cols-3' : 'sm:grid-cols-2')">
               <app-balance-card
                 label="Deuda a la fecha"
                 [amount]="totalMonto()"
                 variant="highlight"
                 icon="saldo"
+                [accentLeft]="true" [loading]="loading()"
+              />
+              <app-balance-card
+                label="Abono general"
+                [amount]="totalAbono()"
+                icon="pagado"
                 [accentLeft]="true" [loading]="loading()"
               />
               @if (totalHonorarios() > 0) {
@@ -153,14 +175,6 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
                   [accentLeft]="true" [loading]="loading()"
                 />
               }
-              <button
-                type="button"
-                (click)="clientReportOpen.set(true)"
-                class="w-full rounded-xl border border-border px-4 py-2 text-sm font-medium hover:bg-muted inline-flex items-center justify-center gap-2"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
-                Informe General
-              </button>
             </div>
           </div>
 
@@ -182,21 +196,28 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
             <div class="table-wrap">
               <table class="w-full min-w-[92rem] table-fixed">
                 <colgroup>
-                  <col class="w-[11%]" />
-                  <col class="w-[8%]" />
+                  <col class="w-[10%]" />
+                  <col class="w-[7%]" />
                   <col class="w-[9%]" />
-                  <col class="w-[11%]" />
-                  <col class="w-[11%]" />
+                  <col class="w-[8%]" />
+                  <col class="w-[10%]" />
+                  <col class="w-[10%]" />
+                  <col class="w-[8%]" />
                   <col class="w-[9%]" />
                   <col class="w-[10%]" />
-                  <col class="w-[11%]" />
-                  <col class="w-[8%]" />
+                  <col class="w-[7%]" />
                   <col class="w-[12%]" />
                 </colgroup>
                 <thead>
                   <tr class="border-b border-border">
                     <th class="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Dirección</th>
                     <th class="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Tipo</th>
+                    <th
+                      class="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase"
+                      title="PRE-JURÍDICO si aún no tiene radicado"
+                    >
+                      Proceso
+                    </th>
                     <th class="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Propiedad</th>
                     <th class="deudor-col text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Deudor</th>
                     <th
@@ -239,6 +260,12 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
                       <td class="px-4 py-3 overflow-hidden">
                         <app-status-badge [label]="data.tipoCuentaLabels[p.tipo_cuenta]" [variant]="p.tipo_cuenta" />
                       </td>
+                      <td class="px-4 py-3 overflow-hidden">
+                        <app-status-badge
+                          [label]="data.getClasificacionProcesoCuenta(p.id).label"
+                          [variant]="data.variantClasificacionProcesoCuenta(p.id)"
+                        />
+                      </td>
                       <td class="px-4 py-3 font-medium overflow-hidden">
                         <div class="truncate" [title]="p.identificador">{{ p.identificador }}</div>
                       </td>
@@ -253,7 +280,7 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
                           {{ data.formatDiasMora(resumenCobro(p).edad_mora_dias) }}
                         </div>
                         <div class="text-xs text-muted-foreground mt-1 leading-snug line-clamp-2">
-                          {{ data.formatEtapaCobranzaCorta(resumenCobro(p).edad_mora_dias) }}
+                          {{ data.formatEtapaCobranzaCorta(resumenCobro(p).edad_mora_dias, resumenCobro(p).deuda) }}
                         </div>
                         <div class="text-xs text-muted-foreground mt-1">
                           Inicio de mora: {{ data.formatFechaCorta(resumenCobro(p).fecha_inicio_cobro) }}
@@ -1056,6 +1083,7 @@ export class ClienteDetailPage {
   readonly esqueletoCuentas: CeldaEsqueleto[] = [
     { ancho: 'w-32' },
     { ancho: 'w-16', forma: 'etiqueta' },
+    { ancho: 'w-20', forma: 'etiqueta' },
     { ancho: 'w-16' },
     { ancho: 'w-28' },
     { ancho: 'w-16', alinear: 'derecha' },
@@ -1092,6 +1120,9 @@ export class ClienteDetailPage {
   );
   totalMonto = computed(() =>
     this.cuentas().reduce((sum, p) => sum + this.data.getDeudaActualParaCuenta(p), 0)
+  );
+  totalAbono = computed(() =>
+    this.cuentas().reduce((sum, p) => sum + this.data.getTotalPagadoParaCuenta(p), 0),
   );
   totalHonorarios = computed(() => this.data.getTotalHonorariosParaCuentas(this.cuentas()));
 

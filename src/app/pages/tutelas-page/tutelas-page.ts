@@ -14,6 +14,7 @@ import {
 } from '../../core/services/tutelas.service';
 import { ETAPAS_TUTELA, labelEtapaTutela } from '../../core/tutela-etapas';
 import { diasHabilesEntre, todayBogotaYmd } from '../../core/utils/dias-habiles-co';
+import { InformeDialog, type SeccionInforme } from '../../components/informe-dialog/informe-dialog';
 import { TutelaDetalleDialog } from '../../components/tutela-detalle-dialog/tutela-detalle-dialog';
 import { TutelaDialog } from '../../components/tutela-dialog/tutela-dialog';
 import { StatusBadge } from '../../shared/status-badge/status-badge';
@@ -33,7 +34,7 @@ function compararMasRecientePrimero(a: Tutela, b: Tutela): number {
 @Component({
   selector: 'app-tutelas-page',
   standalone: true,
-  imports: [FilaEsqueleto, StatusBadge, TextoTooltip, TutelaDialog, TutelaDetalleDialog],
+  imports: [FilaEsqueleto, InformeDialog, StatusBadge, TextoTooltip, TutelaDialog, TutelaDetalleDialog],
   animations: [fadeInUp, fadeInUpStagger],
   template: `
     <div class="min-h-screen">
@@ -121,6 +122,14 @@ function compararMasRecientePrimero(a: Tutela, b: Tutela): number {
               }
             </div>
             <div class="flex flex-wrap gap-2">
+              <button
+                type="button"
+                (click)="generarInforme()"
+                class="inline-flex items-center gap-2 rounded-xl border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>
+                Generar informe
+              </button>
               <button
                 type="button"
                 (click)="abrirNueva()"
@@ -250,6 +259,16 @@ function compararMasRecientePrimero(a: Tutela, b: Tutela): number {
         />
       }
 
+      @if (informeOpen()) {
+        <app-informe-dialog
+          titulo="Informe de tutelas"
+          [detalle]="detalleInforme()"
+          [secciones]="seccionesInforme()"
+          nombreArchivo="informe_tutelas"
+          (openChange)="informeOpen.set($event)"
+        />
+      }
+
       @if (deleteTarget(); as target) {
         <div class="fixed inset-0 z-40 bg-black/50"></div>
         <section class="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
@@ -311,6 +330,7 @@ export class TutelasPage implements OnInit {
   deleting = signal(false);
 
   dialogOpen = signal(false);
+  informeOpen = signal(false);
   editing = signal<Tutela | null>(null);
   deleteTarget = signal<Tutela | null>(null);
   detalleTarget = signal<Tutela | null>(null);
@@ -393,6 +413,51 @@ export class TutelasPage implements OnInit {
     const restantes = diasHabilesEntre(this.hoy, t.vencimiento);
     if (restantes === 0) return 'Vence hoy';
     return restantes === 1 ? 'Falta 1 día hábil' : `Faltan ${restantes} días hábiles`;
+  }
+
+  generarInforme(): void {
+    this.informeOpen.set(true);
+  }
+
+  detalleInforme(): string {
+    const total = this.filtradas().length;
+    return `${total} tutela${total === 1 ? '' : 's'} según los filtros de esta pantalla.`;
+  }
+
+  seccionesInforme(): SeccionInforme[] {
+    return [
+      {
+        titulo: 'Tutelas',
+        headers: [
+          'Radicado',
+          'Radicación',
+          'Juzgado',
+          'Accionante',
+          'Accionado',
+          'Derecho',
+          'Vencimiento',
+          'Etapa',
+          'Cliente',
+          'Nota',
+        ],
+        rows: this.filtradas().map((t) => {
+          const plazo = this.plazoTexto(t);
+          const vencimiento = this.data.formatFechaCorta(t.vencimiento);
+          return [
+            t.radicado || '—',
+            this.data.formatFechaCorta(t.fecha_radicacion),
+            t.juzgado || '—',
+            t.accionante,
+            t.accionado,
+            t.derecho,
+            plazo ? `${vencimiento} (${plazo})` : vencimiento,
+            this.etapaLabel(t.etapa),
+            t.cliente_nombre || '—',
+            t.nota || '—',
+          ];
+        }),
+      },
+    ];
   }
 
   abrirNueva(): void {

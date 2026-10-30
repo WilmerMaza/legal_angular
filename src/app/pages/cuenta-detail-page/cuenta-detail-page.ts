@@ -123,7 +123,7 @@ import {
                 <div class="sm:col-span-2">
                   <dt class="text-muted-foreground text-xs uppercase tracking-wide mb-1">Etapa de cobranza</dt>
                   <dd class="font-medium text-foreground leading-snug">
-                    {{ data.formatEtapaCobranza(resumenMora()?.edad_mora_dias) }}
+                    {{ data.formatEtapaCobranza(resumenMora()?.edad_mora_dias, resumenMora()?.deuda) }}
                   </dd>
                 </div>
                 <div>
@@ -327,6 +327,28 @@ import {
                         <p class="text-foreground text-sm">{{ data.getGestionDescripcion(g) }}</p>
                       }
                     </div>
+                    @if (!data.isGestionEmailReminder(g)) {
+                      <div class="flex shrink-0 items-center gap-1">
+                        <button
+                          type="button"
+                          (click)="editarGestion(g)"
+                          class="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-secondary"
+                          title="Editar"
+                          aria-label="Editar evento"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                        </button>
+                        <button
+                          type="button"
+                          (click)="openDeleteGestionConfirm(g)"
+                          class="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          title="Eliminar"
+                          aria-label="Eliminar evento"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                        </button>
+                      </div>
+                    }
                   </div>
                 }
               </div>

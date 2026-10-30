@@ -10,6 +10,9 @@ describe('mora-etapas', () => {
     expect(clasificarEtapaCobranza(undefined)).toBe('sin_dato');
     expect(clasificarEtapaCobranza(Number.NaN)).toBe('sin_dato');
     expect(clasificarEtapaCobranza(0)).toBe('al_dia');
+    expect(clasificarEtapaCobranza(0, 0)).toBe('terminado');
+    expect(clasificarEtapaCobranza(40, 0)).toBe('persuasivo_31_60');
+    expect(clasificarEtapaCobranza(40, 100)).toBe('persuasivo_31_60');
     expect(clasificarEtapaCobranza(1)).toBe('persuasivo_1_30');
     expect(clasificarEtapaCobranza(30)).toBe('persuasivo_1_30');
     expect(clasificarEtapaCobranza(31)).toBe('persuasivo_31_60');

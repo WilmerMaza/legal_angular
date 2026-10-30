@@ -7,9 +7,10 @@ import {
 } from './proceso-etapas';
 
 describe('proceso-etapas', () => {
-  it('define 13 etapas en orden del flujo', () => {
-    expect(ETAPAS_PROCESO_ORDENADAS).toHaveLength(13);
+  it('define 14 etapas en orden del flujo', () => {
+    expect(ETAPAS_PROCESO_ORDENADAS).toHaveLength(14);
     expect(ETAPAS_PROCESO_ORDENADAS[0].value).toBe('radicacion');
+    expect(ETAPAS_PROCESO_ORDENADAS.some((e) => e.value === 'suspendido')).toBe(true);
     expect(ETAPAS_PROCESO_ORDENADAS.at(-1)?.value).toBe('terminacion');
   });
 
