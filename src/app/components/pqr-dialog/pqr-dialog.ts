@@ -1,4 +1,5 @@
 import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
+import type { Cliente } from '../../core/models';
 import { DataService } from '../../core/services/data.service';
 import {
   DIAS_HABILES_TERMINO_PQR,
@@ -36,6 +37,59 @@ import { todayBogotaYmd } from '../../core/utils/dias-habiles-co';
               {{ errorMsg() }}
             </div>
           }
+
+          <div>
+            <label class="block text-sm font-medium text-foreground mb-1.5">Cliente *</label>
+            <div class="relative">
+              <input
+                type="search"
+                [value]="clienteBusqueda()"
+                (input)="onClienteBusqueda($any($event.target).value)"
+                (focus)="clienteListaAbierta.set(true)"
+                (blur)="cerrarListaCliente()"
+                placeholder="Buscar por nombre o documento…"
+                autocomplete="off"
+                class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              @if (clienteListaAbierta()) {
+                <ul
+                  class="absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-xl border border-border bg-card shadow-lg"
+                  role="listbox"
+                >
+                  @if (clientesFiltrados().length === 0) {
+                    <li class="px-4 py-2.5 text-sm text-muted-foreground">Ningún cliente coincide.</li>
+                  } @else {
+                    @for (c of clientesFiltrados(); track c.id) {
+                      <li>
+                        <button
+                          type="button"
+                          role="option"
+                          [attr.aria-selected]="c.id === clienteId()"
+                          (mousedown)="seleccionarCliente(c)"
+                          class="flex w-full flex-col items-start gap-0.5 px-4 py-2.5 text-left text-sm hover:bg-muted"
+                          [class.bg-muted]="c.id === clienteId()"
+                        >
+                          <span class="font-medium text-foreground">{{ c.nombre }}</span>
+                          @if (c.documento) {
+                            <span class="text-xs text-muted-foreground">{{ c.documento }}</span>
+                          }
+                        </button>
+                      </li>
+                    }
+                  }
+                </ul>
+              }
+            </div>
+            @if (clienteSeleccionado(); as sel) {
+              <p class="mt-1.5 text-xs text-foreground">
+                Seleccionado: <span class="font-medium">{{ sel.nombre }}</span>
+              </p>
+            } @else {
+              <p class="mt-1.5 text-xs text-muted-foreground">
+                Sin cliente vinculado la PQR no aparece en el informe general del cliente.
+              </p>
+            }
+          </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -189,11 +243,15 @@ export class PqrDialog implements OnInit {
   protected readonly data = inject(DataService);
 
   pqr = input<Pqr | null>(null);
+  clientes = input<Cliente[]>([]);
   openChange = output<boolean>();
   saved = output<Pqr>();
 
   readonly diasTermino = DIAS_HABILES_TERMINO_PQR;
 
+  clienteId = signal('');
+  clienteBusqueda = signal('');
+  clienteListaAbierta = signal(false);
   responsableId = signal('');
   responsables = signal<ResponsablePqr[]>([]);
   cargandoResponsables = signal(true);
@@ -215,6 +273,23 @@ export class PqrDialog implements OnInit {
     return p && !p.responsable_id && !this.responsableId() ? p.responsable_email : null;
   });
 
+  readonly clienteSeleccionado = computed(() => {
+    const id = this.clienteId();
+    return this.clientes().find((c) => c.id === id) ?? null;
+  });
+
+  readonly clientesFiltrados = computed(() => {
+    const q = this.clienteBusqueda().trim().toLowerCase();
+    const list = [...this.clientes()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+    if (!q) return list;
+    return list.filter(
+      (c) =>
+        c.nombre.toLowerCase().includes(q) ||
+        (c.documento ?? '').toLowerCase().includes(q) ||
+        (c.email ?? '').toLowerCase().includes(q),
+    );
+  });
+
   saving = signal(false);
   errorMsg = signal<string | null>(null);
 
@@ -225,6 +300,9 @@ export class PqrDialog implements OnInit {
       this.onFechaRadicacion(todayBogotaYmd());
       return;
     }
+    this.clienteId.set(p.cliente_id ?? '');
+    const nombre = p.cliente_nombre ?? this.clientes().find((c) => c.id === p.cliente_id)?.nombre ?? '';
+    this.clienteBusqueda.set(nombre);
     this.responsableId.set(p.responsable_id ?? '');
     this.solicitante.set(p.solicitante);
     this.entidad.set(p.entidad);
@@ -236,6 +314,24 @@ export class PqrDialog implements OnInit {
     this.estado.set(p.estado ?? '');
     this.estadoInicial = p.estado ?? '';
     this.cerrada.set(p.cerrada);
+  }
+
+  onClienteBusqueda(value: string): void {
+    this.clienteBusqueda.set(value);
+    this.clienteListaAbierta.set(true);
+    const selected = this.clienteSeleccionado();
+    if (selected && selected.nombre !== value.trim()) this.clienteId.set('');
+  }
+
+  seleccionarCliente(c: Cliente): void {
+    this.clienteId.set(c.id);
+    this.clienteBusqueda.set(c.nombre);
+    this.clienteListaAbierta.set(false);
+  }
+
+  cerrarListaCliente(): void {
+    // blur corre antes del click; dar un tick para permitir mousedown
+    setTimeout(() => this.clienteListaAbierta.set(false), 120);
   }
 
   private async cargarResponsables(): Promise<void> {
@@ -277,8 +373,14 @@ export class PqrDialog implements OnInit {
       this.errorMsg.set('Indica el solicitante, la entidad, el asunto y la fecha de radicación.');
       return;
     }
+    const clienteId = this.clienteId().trim();
+    if (!clienteId) {
+      this.errorMsg.set('Selecciona el cliente del portafolio para vincular la PQR al informe general.');
+      return;
+    }
     const orNull = (v: string) => (v.trim() === '' ? null : v.trim());
     const payload = {
+      cliente_id: clienteId,
       responsable_id: orNull(this.responsableId()),
       solicitante,
       entidad,

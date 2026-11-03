@@ -10,6 +10,7 @@ import {
 import type { Cuenta } from '../../core/models';
 import { AuthService } from '../../core/services/auth.service';
 import { DataService } from '../../core/services/data.service';
+import { PqrsService, type PqrInforme } from '../../core/services/pqrs.service';
 import { TutelasService, type TutelaInforme } from '../../core/services/tutelas.service';
 import { BalanceCard } from '../../shared/balance-card/balance-card';
 import { DetalleEsqueleto } from '../../shared/esqueleto/detalle-esqueleto';
@@ -411,6 +412,8 @@ export class ClientePortalPage {
 
   private readonly tutelasService = inject(TutelasService);
   private readonly tutelas = signal<TutelaInforme[]>([]);
+  private readonly pqrsService = inject(PqrsService);
+  private readonly pqrs = signal<PqrInforme[]>([]);
 
   constructor() {
     void this.init();
@@ -426,6 +429,7 @@ export class ClientePortalPage {
       titulo: `Informe General – ${c.nombre}`,
       fecha: this.fechaInforme,
       tutelas: this.tutelas(),
+      pqrs: this.pqrs(),
     });
   }
 
@@ -452,6 +456,10 @@ export class ClientePortalPage {
           .listarParaInformeCliente(id)
           .then((items) => this.tutelas.set(items))
           .catch(() => this.tutelas.set([])),
+        this.pqrsService
+          .listarParaInformeCliente(id)
+          .then((items) => this.pqrs.set(items))
+          .catch(() => this.pqrs.set([])),
       ]);
     } catch {
       this.error.set('No se pudo cargar la información del portal.');

@@ -144,6 +144,14 @@ import {
                     {{ data.formatFechaCorta(resumenMora()?.fecha_fin_cobro) }}
                   </dd>
                 </div>
+                @if (cuenta()!.notas.trim()) {
+                  <div class="sm:col-span-2">
+                    <dt class="text-muted-foreground text-xs uppercase tracking-wide mb-1">Notas</dt>
+                    <dd class="font-medium text-foreground leading-snug whitespace-pre-line">
+                      {{ cuenta()!.notas.trim() }}
+                    </dd>
+                  </div>
+                }
               </dl>
             </div>
           </div>

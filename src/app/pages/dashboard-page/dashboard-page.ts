@@ -6,12 +6,13 @@ import { FILAS_ESQUELETO, FilaEsqueleto, type CeldaEsqueleto } from '../../share
 import { RecordatorioPeriodoChip } from '../../shared/recordatorio-periodo-chip/recordatorio-periodo-chip';
 import { StatusBadge } from '../../shared/status-badge/status-badge';
 import { fadeInUp, fadeInUpStagger } from '../../core/animations/animations';
-import type { Cuenta, ProcesoLegal, TipoProcesoLegal } from '../../core/models';
+import type { Cuenta, EtapaProceso, ProcesoLegal, TipoProcesoLegal } from '../../core/models';
 import {
   ESTADOS_PROCESO_LEGAL_UI,
   coerceEstadoProcesoLegal,
   matchesEstadoProcesoLegalFilter,
 } from '../../core/proceso-estado';
+import { ETAPAS_PROCESO_ORDENADAS } from '../../core/proceso-etapas';
 import {
   getPeriodoRecordatorio,
   resumenRecordatoriosCliente,
@@ -136,6 +137,17 @@ type DashboardRow = {
               <option value="pre_juridico">PRE-JURÍDICO</option>
               <option value="acuerdo_de_pago">ACUERDO DE PAGO</option>
             </select>
+            <select
+              [value]="filterEtapa()"
+              (change)="filterEtapa.set($any($event.target).value)"
+              class="w-full sm:w-[220px] rounded-full border border-input bg-background px-4 py-2"
+            >
+              <option value="todas">Todas las etapas</option>
+              <option value="pre_juridico">PRE-JURÍDICO</option>
+              @for (etapa of etapasProceso; track etapa.value) {
+                <option [value]="etapa.value">{{ etapa.label }}</option>
+              }
+            </select>
           </div>
         </div>
 
@@ -228,7 +240,9 @@ export class DashboardPage {
   search = signal('');
   filterEstado = signal('todos');
   filterTipo = signal('todos');
+  filterEtapa = signal('todas');
   readonly estadoFiltroOpciones = ESTADOS_PROCESO_LEGAL_UI;
+  readonly etapasProceso = ETAPAS_PROCESO_ORDENADAS;
 
   private procesosByClienteId = computed(() => {
     const map = new Map<string, ProcesoLegal[]>();
@@ -265,6 +279,7 @@ export class DashboardPage {
     const s = this.search().toLowerCase();
     const est = this.filterEstado();
     const tip = this.filterTipo();
+    const etapa = this.filterEtapa();
     return this.rows().filter((row) => {
       const matchSearch =
         !s ||
@@ -284,7 +299,12 @@ export class DashboardPage {
           ? row.propiedades.some((p) => !row.procesos.some((pr) => pr.cuenta_id === p.id)) ||
             row.procesos.some((p) => p.tipo === 'extrajudicial')
           : row.procesos.some((p) => p.tipo === (tip as TipoProcesoLegal)));
-      return matchSearch && matchEstado && matchTipo;
+      const matchEtapa =
+        etapa === 'todas' ||
+        (etapa === 'pre_juridico'
+          ? row.propiedades.some((p) => !row.procesos.some((pr) => pr.cuenta_id === p.id))
+          : row.procesos.some((p) => p.etapa_proceso === (etapa as EtapaProceso)));
+      return matchSearch && matchEstado && matchTipo && matchEtapa;
     });
   });
 

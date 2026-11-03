@@ -94,35 +94,38 @@ import { todayBogotaYmd } from '../../core/utils/dias-habiles-co';
             </div>
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-foreground mb-1.5">Cliente (opcional)</label>
-              <select
-                [value]="clienteId()"
-                (change)="clienteId.set($any($event.target).value)"
-                class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="">Sin cliente asociado</option>
-                @for (c of clientes(); track c.id) {
-                  <option [value]="c.id" [selected]="c.id === clienteId()">{{ c.nombre }}</option>
-                }
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-foreground mb-1.5">Derecho</label>
-              <input
-                type="text"
-                list="tutela-derechos"
-                [value]="derecho()"
-                (input)="derecho.set($any($event.target).value)"
-                class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-              <datalist id="tutela-derechos">
-                @for (d of derechosSugeridos; track d) {
-                  <option [value]="d"></option>
-                }
-              </datalist>
-            </div>
+          <div>
+            <label class="block text-sm font-medium text-foreground mb-1.5">Cliente *</label>
+            <select
+              [value]="clienteId()"
+              (change)="clienteId.set($any($event.target).value)"
+              class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              required
+            >
+              <option value="">Selecciona el cliente del portafolio</option>
+              @for (c of clientes(); track c.id) {
+                <option [value]="c.id" [selected]="c.id === clienteId()">{{ c.nombre }}</option>
+              }
+            </select>
+            <p class="mt-1.5 text-xs text-muted-foreground">
+              Sin cliente vinculado la tutela no aparece en el informe general del cliente.
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-foreground mb-1.5">Derecho</label>
+            <input
+              type="text"
+              list="tutela-derechos"
+              [value]="derecho()"
+              (input)="derecho.set($any($event.target).value)"
+              class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <datalist id="tutela-derechos">
+              @for (d of derechosSugeridos; track d) {
+                <option [value]="d"></option>
+              }
+            </datalist>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -134,7 +137,7 @@ import { todayBogotaYmd } from '../../core/utils/dias-habiles-co';
                 class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 @for (opt of etapas; track opt.value) {
-                  <option [value]="opt.value" [selected]="opt.value === etapa()">
+                  <option [value]="opt.value">
                     {{ opt.label }}{{ opt.dias ? ' (' + opt.dias + ' días)' : '' }}
                   </option>
                 }
@@ -300,9 +303,14 @@ export class TutelaDialog implements OnInit {
       this.errorMsg.set('Indica el accionante y el accionado.');
       return;
     }
+    const clienteId = this.clienteId().trim();
+    if (!clienteId) {
+      this.errorMsg.set('Selecciona el cliente del portafolio para vincular la tutela al informe general.');
+      return;
+    }
     const orNull = (v: string) => (v.trim() === '' ? null : v.trim());
     const payload = {
-      cliente_id: orNull(this.clienteId()),
+      cliente_id: clienteId,
       fecha_radicacion: orNull(this.fechaRadicacion()),
       vencimiento: orNull(this.vencimiento()),
       radicado: orNull(this.radicado()),

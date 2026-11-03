@@ -211,6 +211,7 @@ export class DataService {
   readonly tipoCuentaLabels: Record<string, string> = {
     apartamento: 'APARTAMENTO',
     oficina: 'OFICINA',
+    consultorio: 'CONSULTORIO',
     local: 'LOCAL',
     casa: 'CASA',
     bodega: 'BODEGA',
@@ -1403,8 +1404,11 @@ export class DataService {
       tipo: payload.tipo,
       estado: payload.estado,
       etapa_proceso: payload.etapa_proceso,
-      cuenta_id: payload.cuenta_id ?? null,
     };
+    // No enviar cuenta_id: null — Zod rechaza null y el PATCH fallaba al cambiar etapa.
+    if (payload.cuenta_id) {
+      body['cuenta_id'] = payload.cuenta_id;
+    }
     const clienteId = this.procesosLegalesSignal().find((c) => c.id === procesoLegalId)?.cliente_id;
     const patched = await this.http.patch<ProcesoLegal>(`/procesos-legales/${procesoLegalId}`, body);
     if (clienteId) {

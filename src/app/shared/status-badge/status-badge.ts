@@ -38,6 +38,7 @@ export class StatusBadge {
       // Tipos de cuenta (tabla cuentas)
       apartamento: 'bg-primary text-primary-foreground',
       oficina: 'bg-teal-600 text-white',
+      consultorio: 'bg-cyan-700 text-white',
       local: 'bg-violet-600 text-white',
       casa: 'bg-emerald-700 text-white',
       bodega: 'bg-amber-700 text-white',

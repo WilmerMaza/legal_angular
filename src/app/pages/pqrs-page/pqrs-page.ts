@@ -2,6 +2,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
 import { fadeInUp, fadeInUpStagger } from '../../core/animations/animations';
+import type { Cliente } from '../../core/models';
 import { DataService } from '../../core/services/data.service';
 import { PqrsService, plazoPqr, type Pqr } from '../../core/services/pqrs.service';
 import {
@@ -167,7 +168,14 @@ function compararMasRecientePrimero(a: Pqr, b: Pqr): number {
                       <td class="px-5 py-4 text-sm text-muted-foreground w-[7rem] max-w-[7rem]">
                         <p class="truncate cursor-default" [appTextoTooltip]="p.responsable_email || 'Sin asignar'">{{ p.responsable_email || 'Sin asignar' }}</p>
                       </td>
-                      <td class="px-5 py-4 text-sm font-medium text-foreground">{{ p.solicitante }}</td>
+                      <td class="px-5 py-4 text-sm font-medium text-foreground">
+                        {{ p.solicitante }}
+                        @if (p.cliente_nombre) {
+                          <div class="text-xs font-normal text-muted-foreground mt-0.5">Cliente: {{ p.cliente_nombre }}</div>
+                        } @else {
+                          <div class="text-xs font-normal text-amber-700 dark:text-amber-400 mt-0.5">Sin cliente · no sale en informe</div>
+                        }
+                      </td>
                       <td class="px-5 py-4 text-sm text-foreground">{{ p.entidad }}</td>
                       <td class="px-5 py-4 text-sm text-muted-foreground max-w-[14rem]">{{ p.asunto }}</td>
                       <td class="px-5 py-4 text-right text-sm whitespace-nowrap" [class]="plazoClass(p)">
@@ -224,7 +232,12 @@ function compararMasRecientePrimero(a: Pqr, b: Pqr): number {
       </div>
 
       @if (dialogOpen()) {
-        <app-pqr-dialog [pqr]="editing()" (openChange)="dialogOpen.set($event)" (saved)="error.set(null)" />
+        <app-pqr-dialog
+          [pqr]="editing()"
+          [clientes]="clientes()"
+          (openChange)="dialogOpen.set($event)"
+          (saved)="error.set(null)"
+        />
       }
 
       @if (detalleTarget(); as target) {
@@ -306,6 +319,7 @@ export class PqrsPage implements OnInit {
   editing = signal<Pqr | null>(null);
   deleteTarget = signal<Pqr | null>(null);
   detalleTarget = signal<Pqr | null>(null);
+  clientes = signal<Cliente[]>([]);
 
   private readonly hoy = todayBogotaYmd();
 
@@ -343,7 +357,7 @@ export class PqrsPage implements OnInit {
         if (gestion !== 'todas' && p.responsable_email !== gestion) return false;
         if (plazo !== 'todos' && plazoPqr(p, this.hoy) !== plazo) return false;
         if (!q) return true;
-        return [p.radicado, p.solicitante, p.entidad, p.asunto, p.estado, p.responsable_email]
+        return [p.radicado, p.solicitante, p.entidad, p.asunto, p.estado, p.responsable_email, p.cliente_nombre]
           .some((v) => (v ?? '').toLowerCase().includes(q));
       })
       .sort(compararMasRecientePrimero);
@@ -356,6 +370,11 @@ export class PqrsPage implements OnInit {
       this.error.set(this.service.extractErrorMessage(error, 'No se pudieron cargar las PQR.'));
     } finally {
       this.loading.set(false);
+    }
+    try {
+      this.clientes.set(await this.data.loadClientes());
+    } catch {
+      this.clientes.set([]);
     }
   }
 

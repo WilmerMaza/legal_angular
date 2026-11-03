@@ -15,17 +15,21 @@ describe('honorarios', () => {
 
     it('aplica tabla jurídica por etapa', () => {
       expect(porcentajeHonorarios('juridica', 'radicacion')).toBe(15);
+      expect(porcentajeHonorarios('juridica', 'admision')).toBe(15);
       expect(porcentajeHonorarios('juridica', 'inadmision')).toBe(15);
       expect(porcentajeHonorarios('juridica', 'subsanacion')).toBe(15);
       expect(porcentajeHonorarios('juridica', 'mandamiento_de_pago')).toBe(15);
       expect(porcentajeHonorarios('juridica', 'medidas_radicadas')).toBe(15);
       expect(porcentajeHonorarios('juridica', 'notificacion')).toBe(15);
+      expect(porcentajeHonorarios('juridica', 'traslado')).toBe(15);
       expect(porcentajeHonorarios('juridica', 'rechazado')).toBe(15);
       expect(porcentajeHonorarios('juridica', 'sentencia')).toBe(20);
       expect(porcentajeHonorarios('juridica', 'liquidacion_de_costas')).toBe(20);
       expect(porcentajeHonorarios('juridica', 'ejecucion')).toBe(20);
       expect(porcentajeHonorarios('juridica', 'liquidacion_del_credito')).toBe(20);
       expect(porcentajeHonorarios('juridica', 'remate')).toBe(20);
+      expect(porcentajeHonorarios('juridica', 'recurso')).toBe(20);
+      expect(porcentajeHonorarios('juridica', 'otro')).toBeNull();
     });
 
     it('terminacion y sin tipo no tienen %', () => {
