@@ -345,6 +345,12 @@ import {
             </div>
           </div>
 
+          @if (tutelasError()) {
+            <div class="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {{ tutelasError() }}
+            </div>
+          }
+
           @if (tutelas().length > 0) {
             <div>
               <h3 class="text-sm font-semibold text-foreground mb-2">Acciones de tutela</h3>
@@ -484,6 +490,7 @@ export class ClientReportDialog {
 
   private readonly tutelasService = inject(TutelasService);
   readonly tutelas = signal<TutelaInforme[]>([]);
+  readonly tutelasError = signal<string | null>(null);
   readonly tutelasHeaders = TUTELAS_INFORME_HEADERS;
   readonly tutelasTrazabilidadHeaders = TUTELAS_TRAZABILIDAD_HEADERS;
   readonly tutelasRows = computed(() => buildTutelasInformeRows(this.tutelas()));
@@ -564,12 +571,18 @@ export class ClientReportDialog {
       this.chartPalette.set('morado');
       void this.data.loadGestionesForCuentas(this.cuentas());
       this.tutelas.set([]);
+      this.tutelasError.set(null);
       void this.tutelasService
         .listarParaInformeCliente(key)
         .then((items) => {
           if (this.lastSyncedClienteKey === key) this.tutelas.set(items);
         })
-        .catch(() => this.tutelas.set([]));
+        .catch(() => {
+          if (this.lastSyncedClienteKey === key) {
+            this.tutelas.set([]);
+            this.tutelasError.set('No se pudieron cargar las tutelas vinculadas a este cliente.');
+          }
+        });
     });
   }
 

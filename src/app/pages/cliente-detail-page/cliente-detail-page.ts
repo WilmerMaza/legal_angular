@@ -26,6 +26,7 @@ import { DetalleEsqueleto } from '../../shared/esqueleto/detalle-esqueleto';
 import { FILAS_ESQUELETO, FilaEsqueleto, type CeldaEsqueleto } from '../../shared/esqueleto/fila-esqueleto';
 import { RecordatorioPeriodoChip } from '../../shared/recordatorio-periodo-chip/recordatorio-periodo-chip';
 import { StatusBadge } from '../../shared/status-badge/status-badge';
+import { TextoTooltip } from '../../shared/texto-tooltip/texto-tooltip';
 import { fadeInUpStagger } from '../../core/animations/animations';
 import type { ProcesoLegal, DeudorCobro, Cuenta, TipoPersona, TipoCuenta } from '../../core/models';
 import { formatMontoColombiano } from '../../core/utils/format-monto-colombiano';
@@ -58,6 +59,7 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
     DeudorCell,
     StatusBadge,
     RecordatorioPeriodoChip,
+    TextoTooltip,
     ClientReportDialog,
     CrearProcesoLegalDialog,
     ReportPreviewDialog,
@@ -194,19 +196,19 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
               </button>
             </div>
             <div class="table-wrap">
-              <table class="w-full min-w-[92rem] table-fixed">
+              <table class="w-full min-w-[110rem] table-fixed">
                 <colgroup>
-                  <col class="w-[10%]" />
+                  <col class="w-[9%]" />
+                  <col class="w-[6%]" />
+                  <col class="w-[8%]" />
                   <col class="w-[7%]" />
                   <col class="w-[9%]" />
-                  <col class="w-[8%]" />
-                  <col class="w-[10%]" />
-                  <col class="w-[10%]" />
-                  <col class="w-[8%]" />
                   <col class="w-[9%]" />
-                  <col class="w-[10%]" />
-                  <col class="w-[7%]" />
                   <col class="w-[12%]" />
+                  <col class="w-[12%]" />
+                  <col class="w-[12%]" />
+                  <col class="w-[6%]" />
+                  <col class="w-[10%]" />
                 </colgroup>
                 <thead>
                   <tr class="border-b border-border">
@@ -286,19 +288,29 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
                           Inicio de mora: {{ data.formatFechaCorta(resumenCobro(p).fecha_inicio_cobro) }}
                         </div>
                       </td>
-                      <td class="px-3 py-3 text-right tabular-nums whitespace-nowrap align-middle">
-                        {{ data.formatCurrency(data.getSaldoInicialParaCuenta(p)) }}
+                      <td class="px-3 py-3 text-right align-middle overflow-hidden">
+                        <span
+                          class="block truncate tabular-nums cursor-default"
+                          [appTextoTooltip]="data.formatCurrency(data.getSaldoInicialParaCuenta(p))"
+                        >
+                          {{ data.formatCurrency(data.getSaldoInicialParaCuenta(p)) }}
+                        </span>
                       </td>
-                      <td class="px-3 py-3 text-right tabular-nums whitespace-nowrap align-middle font-semibold">
-                        {{ data.formatDeuda(data.getDeudaActualParaCuenta(p)) }}
+                      <td class="px-3 py-3 text-right align-middle overflow-hidden font-semibold">
+                        <span
+                          class="block truncate tabular-nums cursor-default"
+                          [appTextoTooltip]="data.formatDeuda(data.getDeudaActualParaCuenta(p))"
+                        >
+                          {{ data.formatDeuda(data.getDeudaActualParaCuenta(p)) }}
+                        </span>
                       </td>
-                      <td class="px-3 py-3 text-right align-middle">
+                      <td class="px-3 py-3 text-right align-middle overflow-hidden">
                         @if (editingHonorariosCuentaId() === p.id) {
-                          <div class="flex flex-col items-end gap-1.5 min-w-[8.5rem]">
+                          <div class="flex flex-col items-end gap-1.5 w-full min-w-0">
                             <input
                               type="text"
                               inputmode="decimal"
-                              class="w-full rounded-lg border border-input bg-background px-2 py-1 text-sm tabular-nums text-right focus:outline-none focus:ring-2 focus:ring-primary"
+                              class="w-full max-w-full rounded-lg border border-input bg-background px-2 py-1 text-sm tabular-nums text-right focus:outline-none focus:ring-2 focus:ring-primary"
                               [value]="honorariosEditDraft()"
                               (input)="honorariosEditDraft.set($any($event.target).value)"
                               (keydown.enter)="guardarHonorarios(p)"
@@ -339,9 +351,12 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
                             }
                           </div>
                         } @else {
-                          <div class="inline-flex flex-col items-end gap-0.5 group">
-                            <div class="inline-flex items-center gap-1">
-                              <span class="tabular-nums font-medium">
+                          <div class="flex flex-col items-end gap-0.5 min-w-0 max-w-full">
+                            <div class="flex items-center justify-end gap-1 min-w-0 max-w-full">
+                              <span
+                                class="tabular-nums font-medium truncate min-w-0 cursor-default"
+                                [appTextoTooltip]="honorariosParaCuenta(p).monto != null ? data.formatCurrency(honorariosParaCuenta(p).monto!) : null"
+                              >
                                 @if (honorariosParaCuenta(p).monto != null) {
                                   {{ data.formatCurrency(honorariosParaCuenta(p).monto!) }}
                                 } @else {
@@ -351,13 +366,16 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
                               <button
                                 type="button"
                                 (click)="editarHonorarios(p)"
-                                class="p-0.5 rounded text-muted-foreground opacity-70 hover:opacity-100 hover:text-primary hover:bg-secondary"
+                                class="shrink-0 p-0.5 rounded text-muted-foreground opacity-70 hover:opacity-100 hover:text-primary hover:bg-secondary"
                                 title="Editar honorarios"
                               >
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                               </button>
                             </div>
-                            <span class="text-[11px] text-muted-foreground leading-snug max-w-[9rem] text-right">
+                            <span
+                              class="text-[11px] text-muted-foreground leading-snug max-w-full text-right truncate cursor-default"
+                              [appTextoTooltip]="honorariosParaCuenta(p).etiqueta"
+                            >
                               {{ honorariosParaCuenta(p).etiqueta }}
                             </span>
                           </div>
@@ -458,7 +476,7 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
                       <td class="px-4 py-3">
                         <app-status-badge [label]="data.estadoProcesoLegalLabels[cu.estado]" [variant]="cu.estado" />
                       </td>
-                      <td class="px-4 py-3 text-muted-foreground">{{ data.etapaProcesoLabels[cu.etapa_proceso] }}</td>
+                      <td class="px-4 py-3 text-muted-foreground">{{ data.formatEtapaProceso(cu.etapa_proceso) }}</td>
                       <td class="px-4 py-3">
                         <div class="flex items-center justify-end gap-1">
                           <button
@@ -518,6 +536,7 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
           [cuenta]="procesoLegalEditing()"
           [cuentaFormNonce]="procesoLegalDialogNonce()"
           (openChange)="onProcesoLegalDialogOpenChange($event)"
+          (created)="onProcesoLegalGuardado()"
         />
       }
 
@@ -952,6 +971,7 @@ export class ClienteDetailPage {
   tipoCuentaOptions: Array<{ value: TipoCuenta; label: string }> = [
     { value: 'apartamento', label: 'APARTAMENTO' },
     { value: 'oficina', label: 'OFICINA' },
+    { value: 'consultorio', label: 'CONSULTORIO' },
     { value: 'local', label: 'LOCAL' },
     { value: 'casa', label: 'CASA' },
     { value: 'bodega', label: 'BODEGA' },
@@ -1281,6 +1301,17 @@ export class ClienteDetailPage {
     this.procesoLegalDialogOpen.set(open);
     if (!open) {
       this.procesoLegalEditing.set(null);
+    }
+  }
+
+  /** Tras crear/editar radicado (etapa, estado, etc.): refresca la lista del cliente. */
+  async onProcesoLegalGuardado(): Promise<void> {
+    const id = this.cliente()?.id;
+    if (!id) return;
+    try {
+      await this.data.loadProcesosLegalesByCliente(id);
+    } catch {
+      /* la lista ya pudo actualizarse en el DataService; no bloquear el cierre */
     }
   }
 

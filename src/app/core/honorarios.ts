@@ -10,6 +10,7 @@ import {
 /** % jurídicos por etapa (null = sin sugerencia automática). */
 const PCT_JURIDICA_POR_ETAPA: Record<EtapaProceso, number | null> = {
   radicacion: 15,
+  admision: 15,
   inadmision: 15,
   subsanacion: 15,
   mandamiento_de_pago: 15,
@@ -20,6 +21,9 @@ const PCT_JURIDICA_POR_ETAPA: Record<EtapaProceso, number | null> = {
   ejecucion: 20,
   liquidacion_del_credito: 20,
   remate: 20,
+  recurso: 20,
+  traslado: 15,
+  otro: null,
   rechazado: 15,
   suspendido: null,
   terminacion: null,

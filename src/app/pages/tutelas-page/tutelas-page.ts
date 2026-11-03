@@ -100,6 +100,18 @@ function compararMasRecientePrimero(a: Tutela, b: Tutela): number {
               </select>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"><path d="m6 9 6 6 6-6" /></svg>
             </div>
+            <div class="relative shrink-0 sm:w-[200px]">
+              <select
+                [value]="filtroCliente()"
+                (change)="filtroCliente.set($any($event.target).value)"
+                class="w-full appearance-none rounded-xl border border-input bg-background px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="todos">Todos los clientes</option>
+                <option value="con_cliente">Con cliente</option>
+                <option value="sin_cliente">Sin cliente</option>
+              </select>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"><path d="m6 9 6 6 6-6" /></svg>
+            </div>
           </div>
         </div>
 
@@ -182,6 +194,8 @@ function compararMasRecientePrimero(a: Tutela, b: Tutela): number {
                         {{ t.accionante }}
                         @if (t.cliente_nombre) {
                           <div class="text-xs font-normal text-muted-foreground mt-0.5">Cliente: {{ t.cliente_nombre }}</div>
+                        } @else {
+                          <div class="text-xs font-normal text-amber-700 dark:text-amber-400 mt-0.5">Sin cliente · no sale en informe</div>
                         }
                       </td>
                       <td class="px-5 py-4 text-sm text-foreground">{{ t.accionado }}</td>
@@ -310,6 +324,7 @@ export class TutelasPage implements OnInit {
   search = signal('');
   filtroEtapa = signal<string>('todas');
   filtroPlazo = signal<FiltroPlazoTutela>('todos');
+  filtroCliente = signal<'todos' | 'con_cliente' | 'sin_cliente'>('todos');
 
   loading = signal(true);
   readonly filasEsqueleto = FILAS_ESQUELETO;
@@ -362,11 +377,14 @@ export class TutelasPage implements OnInit {
     const q = this.search().trim().toLowerCase();
     const etapa = this.filtroEtapa();
     const plazo = this.filtroPlazo();
+    const cliente = this.filtroCliente();
     return this.service
       .tutelas()
       .filter((t) => {
         if (etapa !== 'todas' && t.etapa !== etapa) return false;
         if (plazo !== 'todos' && plazoTutela(t, this.hoy) !== plazo) return false;
+        if (cliente === 'con_cliente' && !t.cliente_id) return false;
+        if (cliente === 'sin_cliente' && t.cliente_id) return false;
         if (!q) return true;
         return [t.radicado, t.juzgado, t.accionante, t.accionado, t.cliente_nombre, t.derecho, t.nota]
           .some((v) => (v ?? '').toLowerCase().includes(q));
@@ -383,8 +401,9 @@ export class TutelasPage implements OnInit {
       this.loading.set(false);
     }
     try {
-      const cached = this.data.getClientes();
-      this.clientes.set(cached.length > 0 ? cached : await this.data.loadClientes());
+      // Siempre recargar el catálogo completo: la caché puede tener un solo cliente
+      // (p. ej. tras abrir el detalle de uno) y dejar el select incompleto.
+      this.clientes.set(await this.data.loadClientes());
     } catch {
       this.clientes.set([]);
     }

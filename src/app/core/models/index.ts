@@ -21,6 +21,7 @@ export interface Cliente {
 export type TipoCuenta =
   | 'apartamento'
   | 'oficina'
+  | 'consultorio'
   | 'local'
   | 'casa'
   | 'bodega'

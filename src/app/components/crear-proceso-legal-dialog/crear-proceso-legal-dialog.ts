@@ -1,4 +1,5 @@
-import { Component, computed, effect, input, output, signal } from '@angular/core';
+import { Component, computed, effect, ElementRef, input, output, signal, viewChild } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { DataService } from '../../core/services/data.service';
 import type { ProcesoLegal, EstadoProcesoLegal, EtapaProceso, Cuenta, TipoProcesoLegal } from '../../core/models';
 import {
@@ -16,6 +17,7 @@ import { mapProcesoLegalSaveError } from './proceso-legal-save-error';
 @Component({
   selector: 'app-crear-proceso-legal-dialog',
   standalone: true,
+  imports: [FormsModule],
   template: `
     <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div class="fixed inset-0 bg-black/50" (click)="openChange.emit(false)"></div>
@@ -56,9 +58,10 @@ import { mapProcesoLegalSaveError } from './proceso-legal-save-error';
             <div>
               <label class="block text-sm font-medium text-foreground mb-1.5">Tipo de proceso</label>
               <select
-                [value]="tipo()"
-                (change)="tipo.set($any($event.target).value)"
                 class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                [ngModel]="tipo()"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="tipo.set($any($event))"
               >
                 @for (opt of tipoOpciones(); track opt.value) {
                   <option [value]="opt.value">{{ opt.label }}</option>
@@ -68,9 +71,10 @@ import { mapProcesoLegalSaveError } from './proceso-legal-save-error';
             <div>
               <label class="block text-sm font-medium text-foreground mb-1.5">Estado</label>
               <select
-                [value]="estado()"
-                (change)="estado.set($any($event.target).value)"
                 class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                [ngModel]="estado()"
+                [ngModelOptions]="{ standalone: true }"
+                (ngModelChange)="estado.set($any($event))"
               >
                 @for (opt of estadoOpciones; track opt.value) {
                   <option [value]="opt.value">{{ opt.label }}</option>
@@ -82,9 +86,11 @@ import { mapProcesoLegalSaveError } from './proceso-legal-save-error';
           <div>
             <label class="block text-sm font-medium text-foreground mb-1.5">Etapa del proceso</label>
             <select
-              [value]="etapa()"
-              (change)="etapa.set($any($event.target).value)"
+              #etapaSelect
               class="w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              [ngModel]="etapa()"
+              [ngModelOptions]="{ standalone: true }"
+              (ngModelChange)="onEtapaModelChange($event)"
             >
               @for (opt of etapasProceso; track opt.value) {
                 <option [value]="opt.value">{{ opt.label }}</option>
@@ -168,6 +174,8 @@ export class CrearProcesoLegalDialog {
   /** Catálogo de etapas del proceso de radicación (fuente: proceso-etapas.ts). */
   readonly etapasProceso = ETAPAS_PROCESO_ORDENADAS;
 
+  private readonly etapaSelect = viewChild<ElementRef<HTMLSelectElement>>('etapaSelect');
+
   /**
    * Clave = apertura del modal + cuenta. Así al abrir “Editar” siempre se cargan los valores actuales;
    * mientras el usuario escribe, nonce e id no cambian y no se sobrescribe el formulario.
@@ -214,6 +222,17 @@ export class CrearProcesoLegalDialog {
     return coerceEtapaProceso(v);
   }
 
+  onEtapaModelChange(value: unknown): void {
+    this.etapa.set(this.coerceEtapa(value));
+  }
+
+  /** Lee la etapa visible en el select (fuente de verdad al guardar). */
+  private etapaDesdeSelect(): EtapaProceso {
+    const el = this.etapaSelect()?.nativeElement;
+    const fromDom = el?.value;
+    return this.coerceEtapa(fromDom || this.etapa());
+  }
+
   onFormSubmit(event: Event): void {
     event.preventDefault();
     void this.guardar();
@@ -231,16 +250,19 @@ export class CrearProcesoLegalDialog {
       this.errorMsg.set('Asocia el radicado a una propiedad del cliente.');
       return;
     }
+    const etapa = this.etapaDesdeSelect();
+    this.etapa.set(etapa);
     this.errorMsg.set(null);
     this.saving.set(true);
     try {
       if (current) {
+        const cuentaId = pid || String(current.cuenta_id ?? '').trim();
         await this.data.updateProcesoLegal(current.id, {
           numero_cuenta: num,
           tipo: this.tipo(),
           estado: this.estado(),
-          etapa_proceso: this.etapa(),
-          ...(pid ? { cuenta_id: pid } : {}),
+          etapa_proceso: etapa,
+          ...(cuentaId ? { cuenta_id: cuentaId } : {}),
         });
       } else {
         await this.data.createProcesoLegal({
@@ -249,12 +271,12 @@ export class CrearProcesoLegalDialog {
           numero_cuenta: num,
           tipo: this.tipo(),
           estado: this.estado(),
-          etapa_proceso: this.etapa(),
+          etapa_proceso: etapa,
         });
       }
-      this.reset();
       this.created.emit();
       this.openChange.emit(false);
+      this.reset();
     } catch (error: unknown) {
       this.errorMsg.set(mapProcesoLegalSaveError(error, current ? 'edit' : 'create'));
     } finally {
