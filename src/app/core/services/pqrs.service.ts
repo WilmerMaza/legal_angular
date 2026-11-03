@@ -7,6 +7,8 @@ import type { PlazoTutela } from './tutelas.service';
 
 export type Pqr = {
   id: string;
+  cliente_id: string | null;
+  cliente_nombre: string | null;
   responsable_id: string | null;
   /** Correo del responsable (o iniciales heredadas del Excel si no tiene usuario asignado). */
   responsable_email: string | null;
@@ -30,6 +32,7 @@ export type ResponsablePqr = {
 };
 
 export type PqrInput = {
+  cliente_id: string | null;
   responsable_id: string | null;
   solicitante: string;
   entidad: string;
@@ -40,6 +43,21 @@ export type PqrInput = {
   estado: string | null;
   cerrada: boolean;
 };
+
+/** PQR tal como sale en el informe del propietario. */
+export type PqrInforme = Pick<
+  Pqr,
+  | 'id'
+  | 'radicado'
+  | 'solicitante'
+  | 'entidad'
+  | 'asunto'
+  | 'estado'
+  | 'cerrada'
+  | 'fecha_radicacion'
+  | 'vencimiento'
+  | 'created_at'
+> & { historial: HistorialCambio[] };
 
 /** Término legal del derecho de petición (Ley 1755 de 2015, art. 14). */
 export const DIAS_HABILES_TERMINO_PQR = 15;
@@ -88,6 +106,11 @@ export class PqrsService {
 
   historial(id: string): Promise<HistorialCambio[]> {
     return this.http.getItems<HistorialCambio>(`/pqrs/${id}/historial`);
+  }
+
+  /** PQRS del cliente para su informe (sin campos internos). */
+  listarParaInformeCliente(clienteId: string): Promise<PqrInforme[]> {
+    return this.http.getItems<PqrInforme>(`/clientes/${clienteId}/pqrs`);
   }
 
   async remove(id: string): Promise<void> {

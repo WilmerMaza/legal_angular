@@ -17,11 +17,18 @@ import {
   type ReportChartPalette,
   unidadesEjeYFromEdadMoraChartData,
 } from './client-chart-data';
+import type { PqrInforme } from '../services/pqrs.service';
 import type { TutelaInforme } from '../services/tutelas.service';
 import {
   buildUnidadGestionExportRows,
   GESTION_EXPORT_HEADERS_CON_UNIDAD,
 } from './gestion-report';
+import {
+  buildPqrsInformeRows,
+  buildPqrsTrazabilidadRows,
+  PQRS_INFORME_HEADERS,
+  PQRS_TRAZABILIDAD_HEADERS,
+} from './pqrs-report';
 import {
   buildTutelasInformeRows,
   buildTutelasTrazabilidadRows,
@@ -225,6 +232,7 @@ export function downloadClientGeneralReportPdf(options: {
   fecha?: string;
   chartPalette?: ReportChartPalette;
   tutelas?: TutelaInforme[];
+  pqrs?: PqrInforme[];
 }): void {
   const { data, cliente, cuentas } = options;
   const tituloDoc = options.titulo?.trim() || `Informe General – ${cliente.nombre}`;
@@ -361,9 +369,10 @@ export function downloadClientGeneralReportPdf(options: {
   }
 
   const tutelas = options.tutelas ?? [];
+  let yCursor =
+    gestionRows.length > 0 ? (docLt.lastAutoTable?.finalY ?? yAfterTx + 24) : yAfterTx + 18;
   if (tutelas.length > 0) {
-    const yAfterGestion = gestionRows.length > 0 ? (docLt.lastAutoTable?.finalY ?? yAfterTx + 24) : yAfterTx + 18;
-    let y = yAfterGestion + 10;
+    let y = yCursor + 10;
     if (y > doc.internal.pageSize.getHeight() - 40) {
       doc.addPage();
       y = 20;
@@ -390,6 +399,42 @@ export function downloadClientGeneralReportPdf(options: {
       startY: y + 4,
       head: [[...TUTELAS_TRAZABILIDAD_HEADERS]],
       body: buildTutelasTrazabilidadRows(tutelas),
+      styles: { fontSize: 8, overflow: 'linebreak' },
+      columnStyles: { 3: { cellWidth: 90 } },
+      headStyles: { fillColor: [107, 60, 200] },
+    });
+    yCursor = docLt.lastAutoTable?.finalY ?? y + 24;
+  }
+
+  const pqrs = options.pqrs ?? [];
+  if (pqrs.length > 0) {
+    let y = yCursor + 10;
+    if (y > doc.internal.pageSize.getHeight() - 40) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setFontSize(11);
+    doc.text('Radicados y PQR', 14, y);
+    autoTable(doc, {
+      startY: y + 4,
+      head: [[...PQRS_INFORME_HEADERS]],
+      body: buildPqrsInformeRows(pqrs),
+      styles: { fontSize: 8, overflow: 'linebreak' },
+      headStyles: { fillColor: [107, 60, 200] },
+    });
+
+    const yAfterPqrs = (docLt.lastAutoTable?.finalY ?? y + 24) + 10;
+    y = yAfterPqrs;
+    if (y > doc.internal.pageSize.getHeight() - 40) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.setFontSize(11);
+    doc.text('Trazabilidad de PQR', 14, y);
+    autoTable(doc, {
+      startY: y + 4,
+      head: [[...PQRS_TRAZABILIDAD_HEADERS]],
+      body: buildPqrsTrazabilidadRows(pqrs),
       styles: { fontSize: 8, overflow: 'linebreak' },
       columnStyles: { 3: { cellWidth: 90 } },
       headStyles: { fillColor: [107, 60, 200] },

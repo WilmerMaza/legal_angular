@@ -2,7 +2,14 @@ import { Component, computed, effect, inject, input, output, signal } from '@ang
 import { BaseChartDirective } from 'ng2-charts';
 import type { ChartConfiguration } from 'chart.js';
 import { DataService } from '../../core/services/data.service';
+import { PqrsService, type PqrInforme } from '../../core/services/pqrs.service';
 import { TutelasService, type TutelaInforme } from '../../core/services/tutelas.service';
+import {
+  buildPqrsInformeRows,
+  buildPqrsTrazabilidadRows,
+  PQRS_INFORME_HEADERS,
+  PQRS_TRAZABILIDAD_HEADERS,
+} from '../../core/report-export/pqrs-report';
 import {
   buildTutelasInformeRows,
   buildTutelasTrazabilidadRows,
@@ -402,6 +409,63 @@ import {
             </div>
           }
 
+          @if (pqrsError()) {
+            <div class="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {{ pqrsError() }}
+            </div>
+          }
+
+          @if (pqrs().length > 0) {
+            <div>
+              <h3 class="text-sm font-semibold text-foreground mb-2">Radicados y PQR</h3>
+              <div class="overflow-x-auto rounded-xl border border-border">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-border bg-muted/30">
+                      @for (h of pqrsHeaders; track h) {
+                        <th class="text-left px-3 py-2 font-semibold text-muted-foreground whitespace-nowrap">{{ h }}</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of pqrsRows(); track $index) {
+                      <tr class="border-b border-border/50">
+                        @for (cell of row; track $index; let first = $first) {
+                          <td class="px-3 py-2" [class.font-mono]="first" [class.text-xs]="first">{{ cell }}</td>
+                        }
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div>
+              <h3 class="text-sm font-semibold text-foreground mb-2">Trazabilidad de PQR</h3>
+              <div class="overflow-x-auto rounded-xl border border-border">
+                <table class="w-full text-sm">
+                  <thead>
+                    <tr class="border-b border-border bg-muted/30">
+                      @for (h of pqrsTrazabilidadHeaders; track h) {
+                        <th class="text-left px-3 py-2 font-semibold text-muted-foreground whitespace-nowrap">{{ h }}</th>
+                      }
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (row of pqrsTrazabilidadRows(); track $index) {
+                      <tr class="border-b border-border/50 align-top">
+                        <td class="px-3 py-2 font-mono text-xs">{{ row[0] }}</td>
+                        <td class="px-3 py-2 text-muted-foreground whitespace-nowrap">{{ row[1] }}</td>
+                        <td class="px-3 py-2 whitespace-nowrap">{{ row[2] }}</td>
+                        <td class="px-3 py-2 whitespace-pre-line">{{ row[3] }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+
           <div>
             <label class="block text-sm font-medium text-foreground mb-1.5">Notas adicionales (opcional)</label>
             <textarea
@@ -496,6 +560,14 @@ export class ClientReportDialog {
   readonly tutelasRows = computed(() => buildTutelasInformeRows(this.tutelas()));
   readonly tutelasTrazabilidadRows = computed(() => buildTutelasTrazabilidadRows(this.tutelas()));
 
+  private readonly pqrsService = inject(PqrsService);
+  readonly pqrs = signal<PqrInforme[]>([]);
+  readonly pqrsError = signal<string | null>(null);
+  readonly pqrsHeaders = PQRS_INFORME_HEADERS;
+  readonly pqrsTrazabilidadHeaders = PQRS_TRAZABILIDAD_HEADERS;
+  readonly pqrsRows = computed(() => buildPqrsInformeRows(this.pqrs()));
+  readonly pqrsTrazabilidadRows = computed(() => buildPqrsTrazabilidadRows(this.pqrs()));
+
   readonly barEdadMoraData = computed((): ChartConfiguration<'bar'>['data'] =>
     buildClienteUnidadesPorEdadMoraChartData(this.data, this.cuentas(), {
       palette: this.chartPalette(),
@@ -583,6 +655,19 @@ export class ClientReportDialog {
             this.tutelasError.set('No se pudieron cargar las tutelas vinculadas a este cliente.');
           }
         });
+      this.pqrs.set([]);
+      this.pqrsError.set(null);
+      void this.pqrsService
+        .listarParaInformeCliente(key)
+        .then((items) => {
+          if (this.lastSyncedClienteKey === key) this.pqrs.set(items);
+        })
+        .catch(() => {
+          if (this.lastSyncedClienteKey === key) {
+            this.pqrs.set([]);
+            this.pqrsError.set('No se pudieron cargar las PQR vinculadas a este cliente.');
+          }
+        });
     });
   }
 
@@ -596,6 +681,7 @@ export class ClientReportDialog {
       fecha: this.fecha,
       chartPalette: this.chartPalette(),
       tutelas: this.tutelas(),
+      pqrs: this.pqrs(),
     });
   }
 
@@ -651,6 +737,18 @@ export class ClientReportDialog {
             ['Trazabilidad de tutelas'],
             [...TUTELAS_TRAZABILIDAD_HEADERS],
             ...this.tutelasTrazabilidadRows(),
+          ]
+        : []),
+      ...(this.pqrs().length
+        ? [
+            [],
+            ['Radicados y PQR'],
+            [...PQRS_INFORME_HEADERS],
+            ...this.pqrsRows(),
+            [],
+            ['Trazabilidad de PQR'],
+            [...PQRS_TRAZABILIDAD_HEADERS],
+            ...this.pqrsTrazabilidadRows(),
           ]
         : []),
     ];
@@ -736,6 +834,19 @@ export class ClientReportDialog {
             buildTable(
               [...TUTELAS_TRAZABILIDAD_HEADERS],
               this.tutelasTrazabilidadRows().map((row) => row.map((cell) => cell.replaceAll('\n', ' · '))),
+            ),
+          ]
+        : []),
+      ...(this.pqrs().length
+        ? [
+            buildSpacer(),
+            buildSubheading('Radicados y PQR'),
+            buildTable([...PQRS_INFORME_HEADERS], this.pqrsRows()),
+            buildSpacer(),
+            buildSubheading('Trazabilidad de PQR'),
+            buildTable(
+              [...PQRS_TRAZABILIDAD_HEADERS],
+              this.pqrsTrazabilidadRows().map((row) => row.map((cell) => cell.replaceAll('\n', ' · '))),
             ),
           ]
         : []),
