@@ -7,7 +7,7 @@ import {
   buildEdadMoraChartOptions,
   unidadesEjeYFromEdadMoraChartData,
 } from '../../core/report-export/client-chart-data';
-import type { Cuenta } from '../../core/models';
+import type { Cuenta, ProcesoLegal } from '../../core/models';
 import { AuthService } from '../../core/services/auth.service';
 import { DataService } from '../../core/services/data.service';
 import { PqrsService, type PqrInforme } from '../../core/services/pqrs.service';
@@ -174,6 +174,7 @@ import { fadeInUp, fadeInUpStagger } from '../../core/animations/animations';
                 <thead>
                   <tr class="border-b border-border">
                     <th class="text-left px-4 sm:px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">No. RADICADO</th>
+                    <th class="text-left px-4 sm:px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Propiedad</th>
                     <th class="text-left px-4 sm:px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Tipo</th>
                     <th class="text-left px-4 sm:px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Estado</th>
                     <th class="text-left px-4 sm:px-6 py-3 text-xs font-semibold text-muted-foreground uppercase">Etapa</th>
@@ -188,6 +189,16 @@ import { fadeInUp, fadeInUpStagger } from '../../core/animations/animations';
                   @for (cu of procesosLegales(); track cu.id; let i = $index) {
                     <tr [@fadeInUpStagger]="stagger(i + 20)" class="border-b border-border/50">
                       <td class="px-4 sm:px-6 py-3 font-mono text-sm">{{ cu.numero_cuenta }}</td>
+                      <td class="px-4 sm:px-6 py-3 text-sm">
+                        @if (propiedadParaProceso(cu); as prop) {
+                          <span class="font-medium text-foreground">{{ prop.identificador }}</span>
+                          @if (prop.direccion) {
+                            <span class="text-xs text-muted-foreground block truncate max-w-[14rem]">{{ prop.direccion }}</span>
+                          }
+                        } @else {
+                          <span class="text-xs text-muted-foreground italic">Sin propiedad</span>
+                        }
+                      </td>
                       <td class="px-4 sm:px-6 py-3">
                         <app-status-badge
                           [label]="data.tipoProcesoLegalLabels[cu.tipo]"
@@ -316,6 +327,7 @@ export class ClientePortalPage {
   ];
   readonly esqueletoProcesos: CeldaEsqueleto[] = [
     { ancho: 'w-28' },
+    { ancho: 'w-28' },
     { ancho: 'w-20', forma: 'etiqueta' },
     { ancho: 'w-20', forma: 'etiqueta' },
     { ancho: 'w-24' },
@@ -347,6 +359,11 @@ export class ClientePortalPage {
     if (!id) return [];
     return this.data.getProcesosLegalesByCliente(id);
   });
+
+  propiedadParaProceso(proceso: ProcesoLegal): Cuenta | undefined {
+    if (!proceso.cuenta_id) return undefined;
+    return this.cuentas().find((c) => c.id === proceso.cuenta_id);
+  }
 
   readonly totalCobrado = computed(() =>
     this.cuentas().reduce((sum, p) => sum + this.data.getTotalCobradoParaCuenta(p), 0),

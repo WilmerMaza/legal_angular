@@ -446,6 +446,7 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
                 <thead>
                   <tr class="border-b border-border">
                     <th class="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">No. RADICADO</th>
+                    <th class="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Propiedad</th>
                     <th class="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Tipo</th>
                     <th class="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Estado</th>
                     <th class="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase">Etapa</th>
@@ -461,6 +462,16 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
                   @for (cu of procesosLegales(); track cu.id) {
                     <tr class="border-b border-border/50">
                       <td class="px-4 py-3 font-mono text-sm">{{ cu.numero_cuenta }}</td>
+                      <td class="px-4 py-3 text-sm">
+                        @if (propiedadParaProceso(cu); as prop) {
+                          <span class="font-medium text-foreground">{{ prop.identificador }}</span>
+                          @if (prop.direccion) {
+                            <span class="text-xs text-muted-foreground block truncate max-w-[14rem]">{{ prop.direccion }}</span>
+                          }
+                        } @else {
+                          <span class="text-xs text-muted-foreground italic">Sin propiedad</span>
+                        }
+                      </td>
                       <td class="px-4 py-3">
                         <app-status-badge
                           [label]="data.tipoProcesoLegalLabels[cu.tipo]"
@@ -500,7 +511,7 @@ function deudorContactoValidator(group: AbstractControl): ValidationErrors | nul
                     </tr>
                   } @empty {
                     <tr>
-                      <td colspan="5" class="px-4 py-10 text-center text-sm text-muted-foreground">
+                      <td colspan="6" class="px-4 py-10 text-center text-sm text-muted-foreground">
                         No hay radicados. Pulsa <span class="font-medium text-foreground">Añadir radicado</span> para registrar tipo, estado y etapa.
                       </td>
                     </tr>
@@ -1115,6 +1126,7 @@ export class ClienteDetailPage {
   ];
   readonly esqueletoProcesos: CeldaEsqueleto[] = [
     { ancho: 'w-28' },
+    { ancho: 'w-28' },
     { ancho: 'w-20', forma: 'etiqueta' },
     { ancho: 'w-20', forma: 'etiqueta' },
     { ancho: 'w-24' },
@@ -1138,6 +1150,11 @@ export class ClienteDetailPage {
   procesosLegales = computed(() =>
     this.id() ? this.data.getProcesosLegalesByCliente(this.id()) : []
   );
+
+  propiedadParaProceso(proceso: ProcesoLegal): Cuenta | undefined {
+    if (!proceso.cuenta_id) return undefined;
+    return this.cuentas().find((c) => c.id === proceso.cuenta_id);
+  }
   totalMonto = computed(() =>
     this.cuentas().reduce((sum, p) => sum + this.data.getDeudaActualParaCuenta(p), 0)
   );
